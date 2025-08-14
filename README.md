@@ -17,8 +17,8 @@ Marilyn Stephany Joven Fonseca|
 │   └── .
 │       └── .
 ├── db/
-│   ├── 000_
-│   └── tables.py
+│   ├── 000_create_tables.sql
+│   └── 001_data_dummy.sql
 ├── frontend/
 │   ├── ./
 │   │   └── .
