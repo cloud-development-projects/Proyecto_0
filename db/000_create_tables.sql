@@ -17,19 +17,19 @@
 -- * CREACION TABLA USUARIOS *
 -- ***************************
 CREATE TABLE IF NOT EXISTS users (
-    id             SERIAL PRIMARY KEY, 
-    username       VARCHAR(50) NOT NULL UNIQUE,
+    id             SERIAL       PRIMARY KEY, 
+    username       VARCHAR(50)  NOT NULL UNIQUE,
     password       VARCHAR(255) NOT NULL, 
     profile_img    TEXT NULL
 );
 
 
-COMMENT ON TABLE users                 IS 'Contiene la información del usuario';
+COMMENT ON TABLE users                 IS 'Contains user information';
 -- COMENTARIOS DE CADA COLUMNA
-COMMENT ON COLUMN users.id             IS 'Identificador único del usuario';
-COMMENT ON COLUMN users.username       IS 'Nombre único que identifica al usuario';
+COMMENT ON COLUMN users.id             IS 'Unique user identifier';
+COMMENT ON COLUMN users.username       IS 'Unique name identifying the user';
 COMMENT ON COLUMN users.password       IS 'Contraseña del usuario';
-COMMENT ON COLUMN users.profile_img    IS 'Ruta al archivo de imagen de perfil';
+COMMENT ON COLUMN users.profile_img    IS 'User password';
 
 -- -----------------------------------------------------------------------------
 
@@ -42,11 +42,11 @@ CREATE TABLE IF NOT EXISTS categories (
     description TEXT 
 );
 
-COMMENT ON TABLE categories              IS 'Categorías para clasificar las tareas';
+COMMENT ON TABLE categories              IS 'Categories for classifying tasks';
 -- COMENTARIOS DE CADA COLUMNA
-COMMENT ON COLUMN categories.id          IS 'Identificador único de la categoría';
-COMMENT ON COLUMN categories.name        IS 'Nombre de la categoría';
-COMMENT ON COLUMN categories.description IS 'Descripción opcional de la categoría';
+COMMENT ON COLUMN categories.id          IS 'Unique category identifier';
+COMMENT ON COLUMN categories.name        IS 'Category name';
+COMMENT ON COLUMN categories.description IS 'Optional category description';
 
 -- -----------------------------------------------------------------------------
 
@@ -58,10 +58,10 @@ CREATE TABLE IF NOT EXISTS states (
     description        varchar(100)
 );
 
-COMMENT ON TABLE  states             IS 'Estados para clasificar los estados de las tareas';
+COMMENT ON TABLE  states             IS 'States for classifying task statuses';
 -- COMENTARIOS DE CADA COLUMNA
-COMMENT ON COLUMN states.id          IS 'Identificador único del estado';
-COMMENT ON COLUMN states.description IS 'Descripción del estado';
+COMMENT ON COLUMN states.id          IS 'Unique status identifier';
+COMMENT ON COLUMN states.description IS 'Status description';
 
 INSERT INTO states (description)
 VALUES ('Sin Empezar'),
@@ -83,13 +83,13 @@ CREATE TABLE IF NOT EXISTS tasks (
     id_user            INT REFERENCES users(id)      ON DELETE CASCADE 
 );
 
-COMMENT ON TABLE  tasks                    IS 'Contiene las tareas creadas por los usuarios';
+COMMENT ON TABLE  tasks                    IS 'Contains tasks created by users';
 -- COMENTARIOS DE CADA COLUMNA
-COMMENT ON COLUMN tasks.id                 IS 'Identificador único de la tarea';
-COMMENT ON COLUMN tasks.task_text          IS 'Texto descriptivo de la tarea';
-COMMENT ON COLUMN tasks.creation_date      IS 'Fecha de creación de la tarea';
-COMMENT ON COLUMN tasks.end_date           IS 'Fecha tentativa para finalizar la tarea';
-COMMENT ON COLUMN tasks.id_state           IS 'Identificar del estado seleccionado';
-COMMENT ON COLUMN tasks.id_category        IS 'Clave foránea que referencia a la categoría de la tarea.';
-COMMENT ON COLUMN tasks.id_user            IS 'Clave foránea que referencia al usuario que creó la tarea';
+COMMENT ON COLUMN tasks.id                 IS 'Unique task identifier';
+COMMENT ON COLUMN tasks.task_text          IS 'Task description';
+COMMENT ON COLUMN tasks.creation_date      IS 'Task creation date';
+COMMENT ON COLUMN tasks.end_date           IS 'Tentative task completion date';
+COMMENT ON COLUMN tasks.id_state           IS 'Foreign key referencing the status';
+COMMENT ON COLUMN tasks.id_category        IS 'Foreign key referencing the task category';
+COMMENT ON COLUMN tasks.id_user            IS 'Foreign key referencing the user who created the task';
 
