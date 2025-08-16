@@ -11,10 +11,11 @@ import (
 
 // Handler wires HTTP with user and auth services.
 type Handler struct {
-    users   Service
-    tokens  auth.TokenManager
+    users       Service
+    tokens      auth.TokenManager
     // sessions stores invalidated token IDs (jti) to simulate logout.
-    sessions *InMemorySessionStore
+    sessions    *InMemorySessionStore
+    jwtExpiry   time.Duration
 }
 
 type InMemorySessionStore struct {
@@ -33,8 +34,13 @@ func (s *InMemorySessionStore) IsRevoked(token string) bool {
     return ok
 }
 
-func NewHandler(users Service, tokens auth.TokenManager, sessions *InMemorySessionStore) *Handler {
-    return &Handler{users: users, tokens: tokens, sessions: sessions}
+func NewHandler(users Service, tokens auth.TokenManager, sessions *InMemorySessionStore, jwtExpiry time.Duration) *Handler {
+    return &Handler{
+        users:     users, 
+        tokens:    tokens, 
+        sessions:  sessions,
+        jwtExpiry: jwtExpiry,
+    }
 }
 
 type registerRequest struct {
@@ -76,7 +82,7 @@ func (h *Handler) Login(c *gin.Context) {
     }
     token, err := h.tokens.CreateToken(
         req.Username,
-        24*time.Hour,
+        h.jwtExpiry,
         map[string]any{"uid": user.ID, "username": user.Username},
     )
     if err != nil {

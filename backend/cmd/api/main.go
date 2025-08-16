@@ -2,20 +2,28 @@ package main
 
 import (
 	"log"
-	"os"
 
+	"backend/root/internal/config"
 	httpserver "backend/root/internal/http"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	router := httpserver.NewRouter()
+	// Load configuration from environment variables
+	cfg := config.Load()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	// Set Gin mode based on configuration
+	gin.SetMode(cfg.Server.Mode)
 
-	if err := router.Run(":" + port); err != nil {
-		log.Fatal(err)
+	// Create router with configuration
+	router := httpserver.NewRouter(cfg)
+
+	// Start server
+	addr := cfg.Server.Host + ":" + cfg.Server.Port
+	log.Printf("Starting %s v%s on %s (env: %s)", 
+		cfg.App.Name, cfg.App.Version, addr, cfg.App.Env)
+
+	if err := router.Run(addr); err != nil {
+		log.Fatal("Failed to start server:", err)
 	}
 }
