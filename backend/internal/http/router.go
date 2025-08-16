@@ -8,7 +8,6 @@ import (
 	"backend/root/internal/auth"
 	"backend/root/internal/config"
 	"backend/root/internal/database"
-	"backend/root/internal/task"
 	"backend/root/internal/users"
 )
 
