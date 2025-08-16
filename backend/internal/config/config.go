@@ -8,9 +8,10 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server ServerConfig
-	JWT    JWTConfig
-	App    AppConfig
+	Server   ServerConfig
+	JWT      JWTConfig
+	App      AppConfig
+	Database DatabaseConfig
 }
 
 type ServerConfig struct {
@@ -31,6 +32,18 @@ type AppConfig struct {
 	Env     string // development, staging, production
 }
 
+type DatabaseConfig struct {
+	Host     string
+	Port     string
+	Name     string
+	User     string
+	Password string
+	SSLMode  string
+	Driver   string // postgres, memory
+	MaxOpenConns int
+	MaxIdleConns int
+}
+
 // Load reads configuration from environment variables with sensible defaults
 func Load() *Config {
 	return &Config{
@@ -48,6 +61,17 @@ func Load() *Config {
 			Name:    getEnv("APP_NAME", "Proyecto_0"),
 			Version: getEnv("APP_VERSION", "1.0.0"),
 			Env:     getEnv("APP_ENV", "development"),
+		},
+		Database: DatabaseConfig{
+			Host:         getEnv("DB_HOST", "localhost"),
+			Port:         getEnv("DB_PORT", "5432"),
+			Name:         getEnv("DB_NAME", "proyecto_0"),
+			User:         getEnv("DB_USER", "postgres"),
+			Password:     getEnv("DB_PASSWORD", "password"),
+			SSLMode:      getEnv("DB_SSL_MODE", "disable"),
+			Driver:       getEnv("DB_DRIVER", "memory"), // memory or postgres
+			MaxOpenConns: getEnvInt("DB_MAX_OPEN_CONNS", 25),
+			MaxIdleConns: getEnvInt("DB_MAX_IDLE_CONNS", 5),
 		},
 	}
 }

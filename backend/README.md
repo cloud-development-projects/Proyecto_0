@@ -10,17 +10,26 @@ cp env.example .env
 
 ### Available Environment Variables
 
-| Variable         | Default         | Description                                    |
-| ---------------- | --------------- | ---------------------------------------------- |
-| `PORT`           | `8080`          | Server port                                    |
-| `HOST`           | `0.0.0.0`       | Server host                                    |
-| `GIN_MODE`       | `debug`         | Gin mode (debug, release, test)                |
-| `JWT_SECRET`     | `dev-secret...` | JWT signing secret (change in production!)     |
-| `JWT_ISSUER`     | `Proyecto_0`    | JWT issuer                                     |
-| `JWT_EXPIRATION` | `24h`           | JWT token expiration (e.g., 1h, 30m, 24h)      |
-| `APP_NAME`       | `Proyecto_0`    | Application name                               |
-| `APP_VERSION`    | `1.0.0`         | Application version                            |
-| `APP_ENV`        | `development`   | Environment (development, staging, production) |
+| Variable            | Default         | Description                                    |
+| ------------------- | --------------- | ---------------------------------------------- |
+| `PORT`              | `8080`          | Server port                                    |
+| `HOST`              | `0.0.0.0`       | Server host                                    |
+| `GIN_MODE`          | `debug`         | Gin mode (debug, release, test)                |
+| `JWT_SECRET`        | `dev-secret...` | JWT signing secret (change in production!)     |
+| `JWT_ISSUER`        | `Proyecto_0`    | JWT issuer                                     |
+| `JWT_EXPIRATION`    | `24h`           | JWT token expiration (e.g., 1h, 30m, 24h)      |
+| `APP_NAME`          | `Proyecto_0`    | Application name                               |
+| `APP_VERSION`       | `1.0.0`         | Application version                            |
+| `APP_ENV`           | `development`   | Environment (development, staging, production) |
+| `DB_DRIVER`         | `memory`        | Database driver (memory, postgres)             |
+| `DB_HOST`           | `localhost`     | PostgreSQL host                                |
+| `DB_PORT`           | `5432`          | PostgreSQL port                                |
+| `DB_NAME`           | `proyecto_0`    | PostgreSQL database name                       |
+| `DB_USER`           | `postgres`      | PostgreSQL username                            |
+| `DB_PASSWORD`       | `password`      | PostgreSQL password                            |
+| `DB_SSL_MODE`       | `disable`       | PostgreSQL SSL mode (disable, require, etc.)   |
+| `DB_MAX_OPEN_CONNS` | `25`            | Maximum open database connections              |
+| `DB_MAX_IDLE_CONNS` | `5`             | Maximum idle database connections              |
 
 ### Ways to Set Environment Variables
 
@@ -68,6 +77,150 @@ cp env.example .env
    Environment=GIN_MODE=release
    Environment=APP_ENV=production
    ```
+
+## PostgreSQL Database Setup
+
+This application supports both in-memory storage (for development) and PostgreSQL (for production).
+
+### Option 1: In-Memory Database (Default)
+
+By default, the app uses in-memory storage. No setup required:
+
+```bash
+# Uses in-memory database
+go run cmd/api/main.go
+```
+
+### Option 2: PostgreSQL Database
+
+#### Using Docker (Recommended)
+
+1. **Start PostgreSQL with Docker**:
+
+   ```bash
+   # Start PostgreSQL container
+   docker run --name postgres-proyecto0 \
+     -e POSTGRES_DB=proyecto_0 \
+     -e POSTGRES_USER=postgres \
+     -e POSTGRES_PASSWORD=password \
+     -p 5432:5432 \
+     -d postgres:15
+   ```
+
+2. **Configure environment variables**:
+
+   ```bash
+   # In your .env file or export these
+   export DB_DRIVER=postgres
+   export DB_HOST=localhost
+   export DB_PORT=5432
+   export DB_NAME=proyecto_0
+   export DB_USER=postgres
+   export DB_PASSWORD=password
+   export DB_SSL_MODE=disable
+   ```
+
+3. **Run the application**:
+   ```bash
+   go run cmd/api/main.go
+   ```
+   The app will automatically create the necessary tables on startup.
+
+#### Using Local PostgreSQL Installation
+
+1. **Install PostgreSQL** (macOS with Homebrew):
+
+   ```bash
+   brew install postgresql
+   brew services start postgresql
+   ```
+
+2. **Create database and user**:
+
+   ```bash
+   # Connect to PostgreSQL
+   psql postgres
+
+   # Create database and user
+   CREATE DATABASE proyecto_0;
+   CREATE USER postgres WITH PASSWORD 'password';
+   GRANT ALL PRIVILEGES ON DATABASE proyecto_0 TO postgres;
+   \q
+   ```
+
+3. **Configure and run** (same as Docker steps 2-3 above)
+
+#### Using Docker Compose (Recommended)
+
+The project includes Docker Compose configurations for easy setup:
+
+**Development Setup** (PostgreSQL only, run Go app locally):
+
+```bash
+# Start PostgreSQL database
+make dev
+# or
+docker-compose -f docker-compose.dev.yml up -d
+
+# Run Go app locally
+cd backend && DB_DRIVER=postgres DB_HOST=localhost go run cmd/api/main.go
+```
+
+**Production Setup** (PostgreSQL + Go app in containers):
+
+```bash
+# Start full environment
+make prod
+# or
+docker-compose up -d
+```
+
+**Available Make Commands**:
+
+```bash
+make help          # Show all available commands
+make dev           # Start PostgreSQL for development
+make prod          # Start full production environment
+make test-memory   # Run API with in-memory database
+make test-postgres # Run API with PostgreSQL
+make clean         # Clean up all containers and volumes
+```
+
+**Included Services**:
+
+- **PostgreSQL 15**: Database with auto-initialization
+- **Adminer**: Web-based database admin (dev mode only) at http://localhost:8081
+- **Go API**: The backend application
+
+**Database Initialization**:
+The PostgreSQL container automatically runs:
+
+1. `db/000_create_tables.sql` - Main project schema (usuario, categoria, estado, tarea)
+2. `backend/db/migrations/002_auth_tables.sql` - Auth module tables (users)
+
+### Database Schema
+
+The application automatically creates these tables:
+
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_users_username ON users(username);
+```
+
+### Switching Between Databases
+
+Simply change the `DB_DRIVER` environment variable:
+
+- `DB_DRIVER=memory` → In-memory storage
+- `DB_DRIVER=postgres` → PostgreSQL database
+
+No code changes required!
 
 ## Auth module (in-memory)
 

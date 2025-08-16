@@ -1,10 +1,11 @@
 package users
 
 import (
-	"context"
-	"errors"
-	"sync"
-	"time"
+    "context"
+    "database/sql"
+    "errors"
+    "sync"
+    "time"
 )
 
 // Repository abstracts user persistence. Swap this in-memory implementation with DB-backed repo later.
@@ -58,5 +59,51 @@ func (r *InMemoryRepository) FindByUsername(ctx context.Context, username string
     }
     // DB NOTE: Here you would perform a SELECT query to retrieve the user by username.
     return user, nil
+}
+
+// PostgresRepository implements Repository using PostgreSQL
+type PostgresRepository struct {
+    db *sql.DB
+}
+
+func NewPostgresRepository(db *sql.DB) *PostgresRepository {
+    return &PostgresRepository{db: db}
+}
+
+func (r *PostgresRepository) Create(ctx context.Context, username, passwordHash string) (*User, error) {
+    query := `
+        INSERT INTO users (username, password_hash, created_at) 
+        VALUES ($1, $2, NOW()) 
+        RETURNING id, username, password_hash, created_at`
+    
+    var user User
+    err := r.db.QueryRowContext(ctx, query, username, passwordHash).Scan(
+        &user.ID, &user.Username, &user.PasswordHash, &user.CreatedAt,
+    )
+    if err != nil {
+        if err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"` {
+            return nil, errors.New("username already exists")
+        }
+        return nil, err
+    }
+    
+    return &user, nil
+}
+
+func (r *PostgresRepository) FindByUsername(ctx context.Context, username string) (*User, error) {
+    query := `SELECT id, username, password_hash, created_at FROM users WHERE username = $1`
+    
+    var user User
+    err := r.db.QueryRowContext(ctx, query, username).Scan(
+        &user.ID, &user.Username, &user.PasswordHash, &user.CreatedAt,
+    )
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, errors.New("user not found")
+        }
+        return nil, err
+    }
+    
+    return &user, nil
 }
 

@@ -1,10 +1,13 @@
 package httpserver
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 
 	"backend/root/internal/auth"
 	"backend/root/internal/config"
+	"backend/root/internal/database"
 	"backend/root/internal/users"
 )
 
@@ -13,8 +16,30 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
 
-    // Wire in-memory dependencies for auth/users module using config
-    userRepo := users.NewInMemoryRepository()
+    // Wire dependencies for auth/users module based on configuration
+    var userRepo users.Repository
+    
+    if cfg.Database.Driver == "postgres" {
+        // Initialize PostgreSQL connection
+        db, err := database.NewPostgresConnection(cfg.Database)
+        if err != nil {
+            log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+        }
+        
+        // Create tables if they don't exist
+        if err := database.CreateTables(db); err != nil {
+            log.Fatalf("Failed to create database tables: %v", err)
+        }
+        
+        userRepo = users.NewPostgresRepository(db)
+        log.Printf("Using PostgreSQL database: %s@%s:%s/%s", 
+            cfg.Database.User, cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
+    } else {
+        // Use in-memory repository for development/testing
+        userRepo = users.NewInMemoryRepository()
+        log.Println("Using in-memory database (development mode)")
+    }
+    
     userSvc := users.NewService(userRepo)
     tokenMgr := auth.TokenManager{
         Secret: []byte(cfg.JWT.Secret), 
