@@ -75,11 +75,11 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 		// Task paths
 		task := api.Group("/task")
 		{
-			task.POST("/", tareasHandler.CreateTarea)
-			task.GET("/", tareasHandler.GetTareas)
-			task.GET("/:id", tareasHandler.GetTareaByID)
-			task.PUT("/:id", tareasHandler.UpdateTarea)
-			task.DELETE("/:id", tareasHandler.DeleteTarea)
+			task.POST("/", taskHandler.CreateTarea)
+			task.GET("/", taskHandler.GetTareas)
+			task.GET("/:id", taskHandler.GetTareaByID)
+			task.PUT("/:id", taskHandler.UpdateTarea)
+			task.DELETE("/:id", taskHandler.DeleteTarea)
 		}
 	}
 
