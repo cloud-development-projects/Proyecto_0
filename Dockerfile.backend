@@ -1,0 +1,22 @@
+FROM golang:1.22 AS build
+
+WORKDIR /src
+
+# Copiar solo go.mod y go.sum primero para cache de dependencias
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+
+# Copiar el resto del código
+COPY backend/ .
+
+# Construir binario
+RUN go build -v -o /server .
+
+# Imagen final mínima
+FROM debian:bookworm-slim
+WORKDIR /app
+COPY --from=build /server .
+COPY backend/wait-for-postgres.sh .
+RUN apt-get update && apt-get install -y postgresql-client && chmod +x wait-for-postgres.sh
+EXPOSE 8080
+CMD ["./wait-for-postgres.sh", "postgres-db", "./server"]
