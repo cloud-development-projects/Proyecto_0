@@ -8,6 +8,7 @@ import (
 	"backend/root/internal/auth"
 	"backend/root/internal/config"
 	"backend/root/internal/database"
+	"backend/root/internal/tasks"
 	"backend/root/internal/users"
 )
 
@@ -18,7 +19,7 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 
 	// Wire dependencies for auth/users module based on configuration
 	var userRepo users.Repository
-	var taskRepo task.Repository
+	var taskRepo tasks.Repository
 
 	if cfg.Database.Driver == "postgres" {
 		// Initialize PostgreSQL connection
@@ -33,14 +34,14 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 		}
 
 		userRepo = users.NewPostgresRepository(db)
-		taskRepo = task.NewPostgresRepository(db)
+		taskRepo = tasks.NewPostgresRepository(db)
 
 		log.Printf("Using PostgreSQL database: %s@%s:%s/%s",
 			cfg.Database.User, cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
 	} else {
 		// Use in-memory repository for development/testing
 		userRepo = users.NewInMemoryRepository()
-		taskRepo = task.NewInMemoryRepository()
+		taskRepo = tasks.NewInMemoryRepository()
 		log.Println("Using in-memory database (development mode)")
 	}
 
@@ -53,8 +54,8 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	userHandler := users.NewHandler(userSvc, tokenMgr, sessionStore, cfg.JWT.Expiration)
 
 	// Task
-	taskSvc := task.NewService(taskRepo)
-	taskHandler := task.NewHandler(taskSvc)
+	taskSvc := tasks.NewService(taskRepo)
+	taskHandler := tasks.NewHandler(taskSvc)
 
 	api := router.Group("/api")
 	{
