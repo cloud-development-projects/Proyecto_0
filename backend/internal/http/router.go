@@ -12,6 +12,7 @@ import (
 	"backend/root/internal/auth"
 	"backend/root/internal/categories"
 	"backend/root/internal/config"
+	"backend/root/internal/storage"
 	"backend/root/internal/users"
 )
 
@@ -59,7 +60,9 @@ func NewRouter(cfg *config.Config) *gin.Engine {
         log.Println("Warning: Categories endpoints will not be available with in-memory database")
     }
     
-    userSvc := users.NewService(userRepo)
+    // Initialize profile picture service
+    profilePicService := storage.NewProfilePictureService()
+    userSvc := users.NewService(userRepo, profilePicService)
     tokenMgr := auth.TokenManager{
         Secret: []byte(cfg.JWT.Secret), 
         Issuer: cfg.JWT.Issuer,

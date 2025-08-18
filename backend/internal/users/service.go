@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"backend/root/internal/auth"
+	"backend/root/internal/storage"
 )
 
 // Service provides user-related use cases.
@@ -15,10 +16,14 @@ type Service interface {
 
 type service struct {
     repo Repository
+    profilePicService *storage.ProfilePictureService
 }
 
-func NewService(repo Repository) Service {
-    return &service{repo: repo}
+func NewService(repo Repository, profilePicService *storage.ProfilePictureService) Service {
+    return &service{
+        repo: repo, 
+        profilePicService: profilePicService,
+    }
 }
 
 func (s *service) Register(ctx context.Context, username, password string) (*User, error) {
@@ -29,7 +34,9 @@ func (s *service) Register(ctx context.Context, username, password string) (*Use
     if err != nil {
         return nil, err
     }
-    return s.repo.Create(ctx, username, hash)
+    // Generate default profile picture
+    defaultProfilePic := s.profilePicService.GetDefaultProfilePicture(username)
+    return s.repo.Create(ctx, username, hash, defaultProfilePic)
 }
 
 func (s *service) Authenticate(ctx context.Context, username, password string) (*User, error) {
