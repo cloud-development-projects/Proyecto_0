@@ -65,7 +65,11 @@ func (h *Handler) Register(c *gin.Context) {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
-    c.JSON(http.StatusCreated, gin.H{"id": user.ID, "username": user.Username})
+    c.JSON(http.StatusCreated, gin.H{
+        "id": user.ID, 
+        "username": user.Username, 
+        "profile_img": user.ProfileImg,
+    })
 }
 
 // Login authenticates user and issues a JWT.

@@ -9,7 +9,7 @@ import (
 
 // Repository abstracts user persistence. Swap this in-memory implementation with DB-backed repo later.
 type Repository interface {
-    Create(ctx context.Context, username, passwordHash string) (*User, error)
+    Create(ctx context.Context, username, passwordHash, profileImg string) (*User, error)
     FindByUsername(ctx context.Context, username string) (*User, error)
 }
 
@@ -27,7 +27,7 @@ func NewInMemoryRepository() *InMemoryRepository {
     }
 }
 
-func (r *InMemoryRepository) Create(ctx context.Context, username, passwordHash string) (*User, error) {
+func (r *InMemoryRepository) Create(ctx context.Context, username, passwordHash, profileImg string) (*User, error) {
     r.mu.Lock()
     defer r.mu.Unlock()
 
@@ -39,6 +39,7 @@ func (r *InMemoryRepository) Create(ctx context.Context, username, passwordHash 
         ID:           r.nextID,
         Username:     username,
         Password:     passwordHash,
+        ProfileImg:   profileImg,
     }
     r.usersByUsername[username] = user
     r.nextID++
@@ -68,15 +69,15 @@ func NewPostgresRepository(db *sql.DB) *PostgresRepository {
     return &PostgresRepository{db: db}
 }
 
-func (r *PostgresRepository) Create(ctx context.Context, username, passwordHash string) (*User, error) {
+func (r *PostgresRepository) Create(ctx context.Context, username, passwordHash, profileImg string) (*User, error) {
     query := `
-        INSERT INTO users (username, password) 
-        VALUES ($1, $2) 
-        RETURNING id, username, password`
+        INSERT INTO users (username, password, profile_img) 
+        VALUES ($1, $2, $3) 
+        RETURNING id, username, password, profile_img`
     
     var user User
-    err := r.db.QueryRowContext(ctx, query, username, passwordHash).Scan(
-        &user.ID, &user.Username, &user.Password,
+    err := r.db.QueryRowContext(ctx, query, username, passwordHash, profileImg).Scan(
+        &user.ID, &user.Username, &user.Password, &user.ProfileImg,
     )
     if err != nil {
         if err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"` {
@@ -89,11 +90,11 @@ func (r *PostgresRepository) Create(ctx context.Context, username, passwordHash 
 }
 
 func (r *PostgresRepository) FindByUsername(ctx context.Context, username string) (*User, error) {
-    query := `SELECT id, username, password FROM users WHERE username = $1`
+    query := `SELECT id, username, password, profile_img FROM users WHERE username = $1`
     
     var user User
     err := r.db.QueryRowContext(ctx, query, username).Scan(
-        &user.ID, &user.Username, &user.Password,
+        &user.ID, &user.Username, &user.Password, &user.ProfileImg,
     )
     if err != nil {
         if err == sql.ErrNoRows {
