@@ -65,6 +65,23 @@ services:
       - proyecto0-local-network
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: proyecto0-frontend-local
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_local_modules:/app/node_modules
+    depends_on:
+      - api
+      - postgres
+    networks:
+      - proyecto0-local-network
+    restart: unless-stopped
+
 volumes:
   postgres_local_data:
     driver: local
