@@ -45,6 +45,51 @@ func (h *Handler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, task)
 }
 
+// GetAll handles GET /tasks - retrieves all tasks for the authenticated user with optional filtering
+func (h *Handler) GetAll(c *gin.Context) {
+	userID, err := h.getUserIDFromClaims(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Parse optional query parameters for filtering
+	var categoryID *int64
+	var stateID *int64
+
+	// Parse category_id query parameter
+	if categoryIDStr := c.Query("category_id"); categoryIDStr != "" {
+		catID, err := strconv.ParseInt(categoryIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category_id parameter"})
+			return
+		}
+		categoryID = &catID
+	}
+
+	// Parse state_id query parameter
+	if stateIDStr := c.Query("state_id"); stateIDStr != "" {
+		stID, err := strconv.ParseInt(stateIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid state_id parameter"})
+			return
+		}
+		stateID = &stID
+	}
+
+	// Get tasks with optional filtering
+	tasks, err := h.service.GetAllByUser(c.Request.Context(), userID, categoryID, stateID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"tasks": tasks,
+		"count": len(tasks),
+	})
+}
+
 // Delete handles DELETE /tasks/:id - deletes a task
 func (h *Handler) Delete(c *gin.Context) {
 	taskID, err := strconv.ParseInt(c.Param("id"), 10, 64)

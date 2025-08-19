@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 )
 
@@ -10,6 +11,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, userID int64, taskText string, endDate *time.Time, categoryID *int64) (*Task, error)
 	GetByID(ctx context.Context, id int64) (*Task, error)
+	GetAllByUser(ctx context.Context, userID int64, categoryID *int64, stateID *int64) ([]*TaskResponse, error)
 	Delete(ctx context.Context, id int64) error
 }
 
@@ -57,6 +59,82 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id int64) (*Task, erro
 	}
 	
 	return &task, nil
+}
+
+// GetAllByUser retrieves all tasks for a user with optional filtering by category and state
+func (r *PostgresRepository) GetAllByUser(ctx context.Context, userID int64, categoryID *int64, stateID *int64) ([]*TaskResponse, error) {
+	query := `
+		SELECT 
+			t.id, t.task_text, t.creation_date, t.end_date, t.id_user,
+			s.id as state_id, s.description as state_description,
+			c.id as category_id, c.name as category_name, c.description as category_description
+		FROM tasks t
+		LEFT JOIN states s ON t.id_state = s.id
+		LEFT JOIN categories c ON t.id_category = c.id
+		WHERE t.id_user = $1`
+	
+	var args []interface{}
+	args = append(args, userID)
+	argIndex := 2
+	
+	// Add category filter if provided
+	if categoryID != nil {
+		query += fmt.Sprintf(" AND t.id_category = $%d", argIndex)
+		args = append(args, *categoryID)
+		argIndex++
+	}
+	
+	// Add state filter if provided
+	if stateID != nil {
+		query += fmt.Sprintf(" AND t.id_state = $%d", argIndex)
+		args = append(args, *stateID)
+		argIndex++
+	}
+	
+	query += " ORDER BY t.creation_date DESC"
+	
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var tasks []*TaskResponse
+	for rows.Next() {
+		var resp TaskResponse
+		var stateID, categoryID sql.NullInt64
+		var stateDesc, categoryName, categoryDesc sql.NullString
+		
+		err := rows.Scan(
+			&resp.ID, &resp.TaskText, &resp.CreationDate, &resp.EndDate, &resp.UserID,
+			&stateID, &stateDesc,
+			&categoryID, &categoryName, &categoryDesc,
+		)
+		if err != nil {
+			return nil, err
+		}
+		
+		// Populate state info if available
+		if stateID.Valid {
+			resp.State = &StateInfo{
+				ID:          stateID.Int64,
+				Description: stateDesc.String,
+			}
+		}
+		
+		// Populate category info if available
+		if categoryID.Valid {
+			resp.Category = &CategoryInfo{
+				ID:          categoryID.Int64,
+				Name:        categoryName.String,
+				Description: categoryDesc.String,
+			}
+		}
+		
+		tasks = append(tasks, &resp)
+	}
+	
+	return tasks, nil
 }
 
 // Delete removes a task by ID

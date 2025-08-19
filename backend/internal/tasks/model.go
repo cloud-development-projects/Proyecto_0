@@ -22,15 +22,28 @@ type CreateTaskRequest struct {
 	CategoryID *int64 `json:"category_id,omitempty"`
 }
 
-// TaskResponse represents the response format for task creation
+// TaskResponse represents the response format for task data with related information
 type TaskResponse struct {
-	ID           int64      `json:"id"`
-	TaskText     string     `json:"task_text"`
-	CreationDate time.Time  `json:"creation_date"`
-	EndDate      *time.Time `json:"end_date"`
-	StateID      *int64     `json:"state_id"`
-	CategoryID   *int64     `json:"category_id"`
-	UserID       int64      `json:"user_id"`
+	ID           int64             `json:"id"`
+	TaskText     string            `json:"task_text"`
+	CreationDate time.Time         `json:"creation_date"`
+	EndDate      *time.Time        `json:"end_date"`
+	State        *StateInfo        `json:"state"`
+	Category     *CategoryInfo     `json:"category"`
+	UserID       int64             `json:"user_id"`
+}
+
+// StateInfo represents basic state information
+type StateInfo struct {
+	ID          int64  `json:"id"`
+	Description string `json:"description"`
+}
+
+// CategoryInfo represents basic category information  
+type CategoryInfo struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 // TaskState constants
@@ -47,9 +60,8 @@ func (t *Task) ToResponse() TaskResponse {
 		TaskText:     t.TaskText,
 		CreationDate: t.CreationDate,
 		EndDate:      t.EndDate,
-		StateID:      t.StateID,
-		CategoryID:   t.CategoryID,
 		UserID:       t.UserID,
+		// State and Category will be populated separately when fetching related data
 	}
 }
 

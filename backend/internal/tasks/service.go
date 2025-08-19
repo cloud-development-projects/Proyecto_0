@@ -10,6 +10,7 @@ import (
 // Service defines the interface for task business logic
 type Service interface {
 	Create(ctx context.Context, userID int64, req CreateTaskRequest) (*TaskResponse, error)
+	GetAllByUser(ctx context.Context, userID int64, categoryID *int64, stateID *int64) ([]*TaskResponse, error)
 	Delete(ctx context.Context, taskID int64, userID int64) error
 }
 
@@ -80,6 +81,30 @@ func (s *service) Create(ctx context.Context, userID int64, req CreateTaskReques
 	// Return the task response
 	response := task.ToResponse()
 	return &response, nil
+}
+
+// GetAllByUser retrieves all tasks for a user with optional filtering
+func (s *service) GetAllByUser(ctx context.Context, userID int64, categoryID *int64, stateID *int64) ([]*TaskResponse, error) {
+	// Validate category if provided
+	if categoryID != nil && *categoryID > 0 {
+		exists, err := s.catRepo.Exists(ctx, *categoryID)
+		if err != nil {
+			return nil, errors.New("failed to validate category")
+		}
+		if !exists {
+			return nil, errors.New("category does not exist")
+		}
+	}
+	
+	// Validate state if provided
+	if stateID != nil && *stateID > 0 {
+		if !IsValidState(*stateID) {
+			return nil, errors.New("invalid state ID")
+		}
+	}
+	
+	// Get tasks from repository
+	return s.repo.GetAllByUser(ctx, userID, categoryID, stateID)
 }
 
 // Delete removes a task (only if it belongs to the user)
