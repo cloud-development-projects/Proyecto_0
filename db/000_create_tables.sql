@@ -64,9 +64,9 @@ COMMENT ON COLUMN states.description IS 'Status description';
 
 -- Insert basic states (only once during schema creation)
 INSERT INTO states (description) 
-VALUES ('Not Started'),
-       ('In Progress'),
-       ('Completed')
+VALUES ('Sin Empezar'),
+       ('En Progreso'),
+       ('Completada')
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------

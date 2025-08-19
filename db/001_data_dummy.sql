@@ -13,11 +13,11 @@ TRUNCATE TABLE categories RESTART IDENTITY CASCADE;
 
 -- 2. Insert test users with Gravatar profile pictures
 INSERT INTO users (username, password, profile_img) 
-VALUES ('juanperez'      , '$2a$10$hash1234'  , 'https://www.gravatar.com/avatar/88773a5342684a9223538352aac9add9?d=identicon&s=200'),
-       ('maria_garcia'   , '$2a$10$hash5678'  , 'https://www.gravatar.com/avatar/58946d1c8f840180b7e7e2e0d81b4cc6?d=identicon&s=200'),
-       ('carlos23'       , '$2a$10$hashabc'   , 'https://www.gravatar.com/avatar/9f9d51bc70ef21ca5c14f307980a29d8?d=identicon&s=200'),
-       ('ana_rodriguez'  , '$2a$10$hashxyz'   , 'https://www.gravatar.com/avatar/6384e2b2184bcbf58eccf10ca7a6563c?d=identicon&s=200'),
-       ('luis_m'         , '$2a$10$hashtest'  , 'https://www.gravatar.com/avatar/9da1f8e0aecc9d868bad115129706a77?d=identicon&s=200');
+VALUES ('juanperez'      , '$2a$10$MFD4.XNh2BtVyskCgEieleO5Oms4Hskii3LFMfjkwuWd7YF/5d8Wy'  , 'https://www.gravatar.com/avatar/88773a5342684a9223538352aac9add9?d=identicon&s=200'),
+       ('maria_garcia'   , '$2a$10$MFD4.XNh2BtVyskCgEieleO5Oms4Hskii3LFMfjkwuWd7YF/5d8Wy'  , 'https://www.gravatar.com/avatar/58946d1c8f840180b7e7e2e0d81b4cc6?d=identicon&s=200'),
+       ('carlos23'       , '$2a$10$MFD4.XNh2BtVyskCgEieleO5Oms4Hskii3LFMfjkwuWd7YF/5d8Wy'   , 'https://www.gravatar.com/avatar/9f9d51bc70ef21ca5c14f307980a29d8?d=identicon&s=200'),
+       ('ana_rodriguez'  , '$2a$10$MFD4.XNh2BtVyskCgEieleO5Oms4Hskii3LFMfjkwuWd7YF/5d8Wy'   , 'https://www.gravatar.com/avatar/6384e2b2184bcbf58eccf10ca7a6563c?d=identicon&s=200'),
+       ('luis_m'         , '$2a$10$MFD4.XNh2BtVyskCgEieleO5Oms4Hskii3LFMfjkwuWd7YF/5d8Wy'  , 'https://www.gravatar.com/avatar/9da1f8e0aecc9d868bad115129706a77?d=identicon&s=200');
 
 -- 3. Insert test categories
 INSERT INTO categories (name, description) 
