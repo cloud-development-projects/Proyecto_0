@@ -1,36 +1,33 @@
 -- ***********************************************
--- * REINICIAR BASE DE DATOS CON DATOS DE PRUEBA *
+-- * RESET DATABASE WITH TEST/DUMMY DATA      *
 -- ***********************************************
 
--- 1. Eliminar datos y reiniciar IDs
+-- WARNING: This file is for development/testing only!
+-- It will delete ALL existing data and replace it with test data.
+
+-- 1. Clear all data (but keep tables and states)
 TRUNCATE TABLE tasks      RESTART IDENTITY CASCADE;
 TRUNCATE TABLE users      RESTART IDENTITY CASCADE;
 TRUNCATE TABLE categories RESTART IDENTITY CASCADE;
-TRUNCATE TABLE states     RESTART IDENTITY CASCADE;
+-- NOTE: We DON'T truncate states as they're created during schema setup
 
--- 2. Insertar datos en states
-INSERT INTO states (description)
-VALUES ('Sin Empezar'),
-       ('Empezada'),
-       ('Finalizada');
-
--- 3. Insertar datos en users
+-- 2. Insert test users with Gravatar profile pictures
 INSERT INTO users (username, password, profile_img) 
-VALUES ('juanperez'    , 'hash_1234'  , '/img/juanperez.png'),
-       ('maria.gomez'  , 'hash_5678'  , '/img/mariagomez.png'),
-       ('carlos23'     , 'hash_abc'   , NULL),
-       ('ana_rodriguez', 'hash_xyz'   , '/img/anarodriguez.png'),
-       ('luis_m'       , 'hash_qwerty', NULL);
+VALUES ('juanperez'      , '$2a$10$hash1234'  , 'https://www.gravatar.com/avatar/88773a5342684a9223538352aac9add9?d=identicon&s=200'),
+       ('maria_garcia'   , '$2a$10$hash5678'  , 'https://www.gravatar.com/avatar/58946d1c8f840180b7e7e2e0d81b4cc6?d=identicon&s=200'),
+       ('carlos23'       , '$2a$10$hashabc'   , 'https://www.gravatar.com/avatar/9f9d51bc70ef21ca5c14f307980a29d8?d=identicon&s=200'),
+       ('ana_rodriguez'  , '$2a$10$hashxyz'   , 'https://www.gravatar.com/avatar/6384e2b2184bcbf58eccf10ca7a6563c?d=identicon&s=200'),
+       ('luis_m'         , '$2a$10$hashtest'  , 'https://www.gravatar.com/avatar/9da1f8e0aecc9d868bad115129706a77?d=identicon&s=200');
 
--- 4. Insertar datos en categories
+-- 3. Insert test categories
 INSERT INTO categories (name, description) 
-VALUES ('Trabajo' , 'taskss relacionadas con actividades laborales'),
-       ('Estudio' , 'taskss y actividades académicas'),
+VALUES ('Trabajo' , 'Tareas relacionadas con actividades laborales'),
+       ('Estudio' , 'Tareas y actividades académicas'),
        ('Personal', 'Actividades personales y del hogar'),
        ('Deporte' , 'Rutinas y entrenamientos físicos'),
        ('Compras' , 'Lista de compras y adquisiciones pendientes');
 
--- 5. Insertar datos en tasks
+-- 4. Insert test tasks
 INSERT INTO tasks (task_text, creation_date, end_date, id_state, id_category, id_user) 
 VALUES ('Preparar presentación para la reunión de clientes' , '2025-08-10', '2025-08-14', 2, 1, 1),
        ('Estudiar capítulo 5 de matemáticas'                , '2025-08-11', '2025-08-15', 1, 2, 2),

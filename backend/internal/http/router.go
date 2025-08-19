@@ -13,6 +13,7 @@ import (
 	"backend/root/internal/categories"
 	"backend/root/internal/config"
 	"backend/root/internal/storage"
+	"backend/root/internal/tasks"
 	"backend/root/internal/users"
 )
 
@@ -21,44 +22,39 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
 
-    // Wire dependencies for auth/users/categories modules based on configuration
-    var userRepo users.Repository
-    var categoryRepo categories.Repository
-    
-    if cfg.Database.Driver == "postgres" {
-        // Initialize PostgreSQL connection directly
-        dsn := fmt.Sprintf(
-            "host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-            cfg.Database.Host, cfg.Database.Port, cfg.Database.User, 
-            cfg.Database.Password, cfg.Database.Name, cfg.Database.SSLMode,
-        )
-
-        db, err := sql.Open("postgres", dsn)
-        if err != nil {
-            log.Fatalf("Failed to open database: %v", err)
-        }
-
-        // Configure connection pool
-        db.SetMaxOpenConns(cfg.Database.MaxOpenConns)
-        db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
-        db.SetConnMaxLifetime(time.Hour)
-
-        // Test connection
-        if err := db.Ping(); err != nil {
-            log.Fatalf("Failed to ping database: %v", err)
-        }
-        
-        userRepo = users.NewPostgresRepository(db)
-        categoryRepo = categories.NewPostgresRepository(db)
-        log.Printf("Using PostgreSQL database: %s@%s:%s/%s", 
-            cfg.Database.User, cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
-    } else {
-        // Use in-memory repository for development/testing
-        userRepo = users.NewInMemoryRepository()
-        // Note: Categories module only supports PostgreSQL for now
-        log.Println("Using in-memory database (development mode)")
-        log.Println("Warning: Categories endpoints will not be available with in-memory database")
+    // Ensure PostgreSQL is configured
+    if cfg.Database.Driver != "postgres" {
+        log.Fatalf("Only PostgreSQL database is supported. Set DB_DRIVER=postgres")
     }
+
+    // Initialize PostgreSQL connection
+    dsn := fmt.Sprintf(
+        "host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+        cfg.Database.Host, cfg.Database.Port, cfg.Database.User, 
+        cfg.Database.Password, cfg.Database.Name, cfg.Database.SSLMode,
+    )
+
+    db, err := sql.Open("postgres", dsn)
+    if err != nil {
+        log.Fatalf("Failed to open database: %v", err)
+    }
+
+    // Configure connection pool
+    db.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+    db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+    db.SetConnMaxLifetime(time.Hour)
+
+    // Test connection
+    if err := db.Ping(); err != nil {
+        log.Fatalf("Failed to ping database: %v", err)
+    }
+    
+    // Initialize repositories
+    userRepo := users.NewPostgresRepository(db)
+    categoryRepo := categories.NewPostgresRepository(db)
+    taskRepo := tasks.NewPostgresRepository(db)
+    log.Printf("Using PostgreSQL database: %s@%s:%s/%s", 
+        cfg.Database.User, cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
     
     // Initialize profile picture service
     profilePicService := storage.NewProfilePictureService()
@@ -70,12 +66,12 @@ func NewRouter(cfg *config.Config) *gin.Engine {
     sessionStore := users.NewInMemorySessionStore()
     userHandler := users.NewHandler(userSvc, tokenMgr, sessionStore, cfg.JWT.Expiration)
 
-    // Initialize categories components (only when using PostgreSQL)
-    var categoryHandler *categories.Handler
-    if categoryRepo != nil {
-        categorySvc := categories.NewService(categoryRepo)
-        categoryHandler = categories.NewHandler(categorySvc)
-    }
+    // Initialize service components
+    categorySvc := categories.NewService(categoryRepo)
+    categoryHandler := categories.NewHandler(categorySvc)
+    
+    taskSvc := tasks.NewService(taskRepo, categoryRepo)
+    taskHandler := tasks.NewHandler(taskSvc)
 
     api := router.Group("/api")
     {
@@ -95,14 +91,18 @@ func NewRouter(cfg *config.Config) *gin.Engine {
             })
 
             // Protected Categories endpoints
-            if categoryHandler != nil {
-                categoriesGroup := protected.Group("/categories")
-                categoriesGroup.POST("", categoryHandler.Create)
-                categoriesGroup.GET("", categoryHandler.GetAll)
-                categoriesGroup.GET("/:id", categoryHandler.GetByID)
-                categoriesGroup.PUT("/:id", categoryHandler.Update)
-                categoriesGroup.DELETE("/:id", categoryHandler.Delete)
-            }
+            categoriesGroup := protected.Group("/categories")
+            categoriesGroup.POST("", categoryHandler.Create)
+            categoriesGroup.GET("", categoryHandler.GetAll)
+            categoriesGroup.GET("/:id", categoryHandler.GetByID)
+            categoriesGroup.PUT("/:id", categoryHandler.Update)
+            categoriesGroup.DELETE("/:id", categoryHandler.Delete)
+
+            // Task endpoints
+            protected.POST("/tasks", taskHandler.Create)       // Create task with category association
+            protected.GET("/tasks", taskHandler.GetAll)        // Get all tasks with optional filtering
+            protected.PUT("/tasks/:id", taskHandler.Update)    // Update task (text, state, end date)
+            protected.DELETE("/tasks/:id", taskHandler.Delete) // Delete task
         }
     }
 
