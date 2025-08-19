@@ -10,6 +10,7 @@ import (
 // Service defines the interface for task business logic
 type Service interface {
 	Create(ctx context.Context, userID int64, req CreateTaskRequest) (*TaskResponse, error)
+	GetByID(ctx context.Context, taskID int64, userID int64) (*TaskResponse, error)
 	GetAllByUser(ctx context.Context, userID int64, categoryID *int64, stateID *int64) ([]*TaskResponse, error)
 	Update(ctx context.Context, taskID int64, userID int64, req UpdateTaskRequest) (*TaskResponse, error)
 	Delete(ctx context.Context, taskID int64, userID int64) error
@@ -82,6 +83,28 @@ func (s *service) Create(ctx context.Context, userID int64, req CreateTaskReques
 	// Return the task response
 	response := task.ToResponse()
 	return &response, nil
+}
+
+// GetByID retrieves a task by ID with ownership validation
+func (s *service) GetByID(ctx context.Context, taskID int64, userID int64) (*TaskResponse, error) {
+	if taskID <= 0 {
+		return nil, errors.New("invalid task ID")
+	}
+	
+	// First check if task exists and belongs to user
+	existingTask, err := s.repo.GetByID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	if existingTask == nil {
+		return nil, errors.New("task not found")
+	}
+	if existingTask.UserID != userID {
+		return nil, errors.New("task not found")
+	}
+	
+	// Return the task with detailed information
+	return s.repo.GetByIDWithDetails(ctx, taskID)
 }
 
 // GetAllByUser retrieves all tasks for a user with optional filtering
