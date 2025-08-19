@@ -10,6 +10,7 @@ import (
 // Service defines the interface for task business logic
 type Service interface {
 	Create(ctx context.Context, userID int64, req CreateTaskRequest) (*TaskResponse, error)
+	Delete(ctx context.Context, taskID int64, userID int64) error
 }
 
 // service implements the Service interface
@@ -79,4 +80,25 @@ func (s *service) Create(ctx context.Context, userID int64, req CreateTaskReques
 	// Return the task response
 	response := task.ToResponse()
 	return &response, nil
+}
+
+// Delete removes a task (only if it belongs to the user)
+func (s *service) Delete(ctx context.Context, taskID int64, userID int64) error {
+	if taskID <= 0 {
+		return errors.New("invalid task ID")
+	}
+	
+	// Check if task exists and belongs to user
+	existingTask, err := s.repo.GetByID(ctx, taskID)
+	if err != nil {
+		return err
+	}
+	if existingTask == nil {
+		return errors.New("task not found")
+	}
+	if existingTask.UserID != userID {
+		return errors.New("task not found")
+	}
+	
+	return s.repo.Delete(ctx, taskID)
 }

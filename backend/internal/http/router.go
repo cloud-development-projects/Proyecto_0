@@ -98,8 +98,9 @@ func NewRouter(cfg *config.Config) *gin.Engine {
             categoriesGroup.PUT("/:id", categoryHandler.Update)
             categoriesGroup.DELETE("/:id", categoryHandler.Delete)
 
-            // Task creation endpoint
-            protected.POST("/tasks", taskHandler.Create) // Create task with category association
+            // Task endpoints
+            protected.POST("/tasks", taskHandler.Create)       // Create task with category association
+            protected.DELETE("/tasks/:id", taskHandler.Delete) // Delete task
         }
     }
 
