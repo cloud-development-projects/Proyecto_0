@@ -43,54 +43,10 @@ const TodoApp = () => {
       : [];
   }, [tasks, categories]);
 
-  const [newlyCreatedCategoryIds, setNewlyCreatedCategoryIds] = useState([]);
-
-  // Categories for add/edit task modals - includes default categories + categories used in tasks + newly created
+  // Categories for add/edit task modals - show all available categories
   const taskModalCategories = useMemo(() => {
-    if (!Array.isArray(categories)) return [];
-    
-    // Get default categories (Trabajo, Estudio, Personal) - always show these
-    const defaultCategoryNames = ['Trabajo', 'Estudio', 'Personal'];
-    const defaultCategories = categories.filter(cat => 
-      defaultCategoryNames.some(name => 
-        cat.nombre.toLowerCase() === name.toLowerCase()
-      )
-    );
-    
-    // Get categories used in tasks
-    const usedCategoryIds = Array.isArray(tasks) ? [...new Set(
-      tasks
-        .filter(task => task.id_categoria !== null && task.id_categoria !== undefined)
-        .map(task => task.id_categoria)
-    )] : [];
-    
-    const usedCategories = categories.filter(cat => 
-      usedCategoryIds.includes(cat.id) && 
-      !defaultCategoryNames.some(name => 
-        cat.nombre.toLowerCase() === name.toLowerCase()
-      )
-    );
-    
-    // Get newly created categories (that aren't used in tasks yet and aren't default categories)
-    const newlyCreated = categories.filter(cat => 
-      newlyCreatedCategoryIds.includes(cat.id) && 
-      !usedCategoryIds.includes(cat.id) &&
-      !defaultCategoryNames.some(name => 
-        cat.nombre.toLowerCase() === name.toLowerCase()
-      )
-    );
-    
-    // Combine: default categories + used categories + newly created
-    const combined = [...defaultCategories, ...usedCategories, ...newlyCreated];
-    
-    console.log('taskModalCategories calculation:');
-    console.log('- Default categories:', defaultCategories.map(c => ({id: c.id, name: c.nombre})));
-    console.log('- Used in tasks:', usedCategories.map(c => ({id: c.id, name: c.nombre})));
-    console.log('- Newly created:', newlyCreated.map(c => ({id: c.id, name: c.nombre})));
-    console.log('- Final combined:', combined.map(c => ({id: c.id, name: c.nombre})));
-    
-    return combined;
-  }, [categories, tasks, newlyCreatedCategoryIds]);
+    return Array.isArray(categories) ? categories : [];
+  }, [categories]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -442,14 +398,6 @@ const TodoApp = () => {
         
         console.log('Task created successfully:', newTaskResponse);
         
-        // If task was created with a newly created category, remove it from the newly created list
-        // since it's now "used in tasks"
-        if (newTaskCategory) {
-          const categoryId = parseInt(newTaskCategory);
-          setNewlyCreatedCategoryIds(prev => prev.filter(id => id !== categoryId));
-          console.log('Removed category from newly created list:', categoryId);
-        }
-        
         // Reload data to get fresh list with all relations
         await loadData();
         
@@ -551,16 +499,13 @@ const TodoApp = () => {
         
         console.log('Mapped new category:', mappedCategory);
         
+        // Add the new category to the local state
         const updatedCategories = Array.isArray(categories) ? [...categories, mappedCategory] : [mappedCategory];
         setCategories(updatedCategories);
-        
-        // Add to newly created categories list so it appears in dropdown
-        setNewlyCreatedCategoryIds(prev => [...prev, mappedCategory.id]);
         
         // Select the newly created category
         setNewTaskCategory(mappedCategory.id.toString());
         console.log('Selected new category:', mappedCategory.id.toString());
-        console.log('Added to newly created list:', mappedCategory.id);
         
         setNewCategoryName('');
         setNewCategoryDescription('');
@@ -804,9 +749,7 @@ const TodoApp = () => {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">
-                CONNECTED
-              </span>
+
               <button
                 onClick={() => setShowAddTask(true)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl flex items-center space-x-2 transition-all duration-300 transform hover:scale-105 shadow-lg"
@@ -1130,20 +1073,12 @@ const TodoApp = () => {
                 onClick={() => {
                   setShowAddTask(false);
                   setNewTask('');
-                  const previousCategory = newTaskCategory;
                   setNewTaskCategory('');
                   setNewTaskDueDate('');
                   setNewTaskStatus(1);
                   setShowCreateCategory(false);
                   setNewCategoryName('');
                   setNewCategoryDescription('');
-                  
-                  // If user had selected a newly created category but didn't create a task,
-                  // remove it from newly created list
-                  if (previousCategory && newlyCreatedCategoryIds.includes(parseInt(previousCategory))) {
-                    setNewlyCreatedCategoryIds(prev => prev.filter(id => id !== parseInt(previousCategory)));
-                    console.log('Cleaned up unused newly created category:', previousCategory);
-                  }
                 }}
                 className="flex-1 px-6 py-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
               >
