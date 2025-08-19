@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq" // PostgreSQL driver
+	"github.com/gin-contrib/cors" // Add this import
+	_ "github.com/lib/pq"
 
 	"backend/root/internal/auth"
 	"backend/root/internal/categories"
@@ -21,6 +22,13 @@ import (
 func NewRouter(cfg *config.Config) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
+
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"http://localhost:3000", "http://127.0.0.1:3000"}
+	config.AllowCredentials = true
+	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
+	router.Use(cors.New(config))
+
 
     // Ensure PostgreSQL is configured
     if cfg.Database.Driver != "postgres" {
