@@ -90,6 +90,29 @@ func (h *Handler) GetAll(c *gin.Context) {
 	})
 }
 
+// GetByID handles GET /tasks/:id - retrieves task details by ID
+func (h *Handler) GetByID(c *gin.Context) {
+	taskID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task ID"})
+		return
+	}
+
+	userID, err := h.getUserIDFromClaims(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	task, err := h.service.GetByID(c.Request.Context(), taskID, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, task)
+}
+
 // Update handles PUT /tasks/:id - updates an existing task
 func (h *Handler) Update(c *gin.Context) {
 	taskID, err := strconv.ParseInt(c.Param("id"), 10, 64)

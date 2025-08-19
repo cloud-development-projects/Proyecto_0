@@ -109,6 +109,7 @@ func NewRouter(cfg *config.Config) *gin.Engine {
             // Task endpoints
             protected.POST("/tasks", taskHandler.Create)       // Create task with category association
             protected.GET("/tasks", taskHandler.GetAll)        // Get all tasks with optional filtering
+            protected.GET("/tasks/:id", taskHandler.GetByID)   // Get task details by ID
             protected.PUT("/tasks/:id", taskHandler.Update)    // Update task (text, state, end date)
             protected.DELETE("/tasks/:id", taskHandler.Delete) // Delete task
         }
