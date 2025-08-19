@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Calendar, User, Filter, CheckCircle2, Circle, Clock, LogOut, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Calendar, User, Filter, CheckCircle2, Circle, Clock, LogOut, Eye, EyeOff, Trash2, Edit, X } from 'lucide-react';
 
 const TodoApp = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Enable auth
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(true);
-  const [loginData, setLoginData] = useState({ username: '', password: '' }); // Changed field names
-  const [registerData, setRegisterData] = useState({ username: '', password: '', confirmPassword: '' }); // Changed field names
+  const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [registerData, setRegisterData] = useState({ username: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -21,6 +21,32 @@ const TodoApp = () => {
   const [newCategoryDescription, setNewCategoryDescription] = useState('');
   const [showAddTask, setShowAddTask] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [editTaskData, setEditTaskData] = useState({ texto_tarea: '', id_categoria: '', fecha_finalizacion: '', id_estado: 1 });
+
+  // Computed categories for sidebar - only show categories that are used in tasks
+  const sidebarCategories = useMemo(() => {
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+      return []; // No categories for new users with no tasks
+    }
+    
+    // Get unique category IDs from tasks
+    const usedCategoryIds = [...new Set(
+      tasks
+        .filter(task => task.id_categoria !== null && task.id_categoria !== undefined)
+        .map(task => task.id_categoria)
+    )];
+    
+    // Return categories that are actually used in tasks
+    return Array.isArray(categories) 
+      ? categories.filter(cat => usedCategoryIds.includes(cat.id))
+      : [];
+  }, [tasks, categories]);
+
+  // Categories for add/edit task modals - show all available categories
+  const taskModalCategories = useMemo(() => {
+    return Array.isArray(categories) ? categories : [];
+  }, [categories]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -28,45 +54,22 @@ const TodoApp = () => {
     if (token && userData) {
       setUser(JSON.parse(userData));
       setIsAuthenticated(true);
-      
-      const loadInitialData = async () => {
-        try {
-          const config = {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            }
-          };
-
-          const [tasksResponse, categoriesResponse] = await Promise.all([
-            fetch('http://localhost:8080/api/tasks', config),
-            fetch('http://localhost:8080/api/categories', config)
-          ]);
-
-          if (tasksResponse.status === 401 || categoriesResponse.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.reload();
-            return;
-          }
-
-          const tasksData = await tasksResponse.json();
-          const categoriesData = await categoriesResponse.json();
-          
-          setTasks(tasksData);
-          setCategories(categoriesData);
-        } catch (error) {
-          console.error('Failed to load data:', error);
-          alert('Backend endpoints for tasks and categories not implemented yet');
-        }
-      };
-      
-      loadInitialData();
+      loadData();
     }
   }, []); 
 
-  // API base URL  
-  const API_BASE = 'http://localhost:8080/api'; // Moved to apiCall function
+  // Reset category filter when sidebar categories change
+  useEffect(() => {
+    // If current selectedCategory is not 'all' and not in sidebarCategories, reset to 'all'
+    if (selectedCategory !== 'all' && sidebarCategories.length > 0) {
+      const categoryExists = sidebarCategories.some(cat => cat.id.toString() === selectedCategory);
+      if (!categoryExists) {
+        setSelectedCategory('all');
+      }
+    }
+  }, [sidebarCategories, selectedCategory]);
+
+  const API_BASE = 'http://localhost:8080/api';
 
   const apiCall = async (endpoint, options = {}) => {
     const token = localStorage.getItem('token');
@@ -105,7 +108,7 @@ const TodoApp = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: loginData.username, // Using correct field names
+          username: loginData.username,
           password: loginData.password
         })
       });
@@ -128,7 +131,7 @@ const TodoApp = () => {
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
       setIsAuthenticated(true);
-      loadData(); // Load real data from backend
+      loadData();
     } catch (error) {
       alert(error.message);
     } finally {
@@ -144,26 +147,37 @@ const TodoApp = () => {
 
     setLoading(true);
     try {
+      console.log('Sending registration data:', {
+        username: registerData.username,
+        password: registerData.password ? '[REDACTED]' : 'EMPTY'
+      });
+
       const response = await fetch('http://localhost:8080/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: registerData.username, // Using correct field names
+          username: registerData.username,
           password: registerData.password
         })
       });
 
+      console.log('Registration response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Error al registrar usuario');
+        console.log('Registration error data:', errorData);
+        throw new Error(errorData.error || `Error al registrar usuario (${response.status})`);
       }
 
-      // Registration successful
+      const responseData = await response.json();
+      console.log('Registration successful:', responseData);
+
       alert('Usuario registrado exitosamente. Por favor inicia sesión.');
       setShowLogin(true);
       setRegisterData({ username: '', password: '', confirmPassword: '' });
     } catch (error) {
-      alert(error.message);
+      console.error('Registration error:', error);
+      alert('Error en registro: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -205,32 +219,122 @@ const TodoApp = () => {
 
   const loadData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      };
-
-      const [tasksResponse, categoriesResponse] = await Promise.all([
-        fetch('http://localhost:8080/api/tasks', config),
-        fetch('http://localhost:8080/api/categories', config)
+      const [tasksData, categoriesData] = await Promise.all([
+        apiCall('/protected/tasks'),
+        apiCall('/protected/categories')
       ]);
-
-      if (tasksResponse.status === 401 || categoriesResponse.status === 401) {
-        logout();
-        return;
-      }
-
-      const tasksData = await tasksResponse.json();
-      const categoriesData = await categoriesResponse.json();
       
-      setTasks(tasksData);
-      setCategories(categoriesData);
+      console.log('Tasks data received:', tasksData);
+      console.log('Categories data received:', categoriesData);
+      console.log('Sample raw task:', tasksData?.tasks?.[0] || tasksData?.[0]);
+      console.log('Sample raw category:', categoriesData?.categories?.[0] || categoriesData?.[0]);
+      
+      // Handle different response formats from backend
+      let tasksArray = Array.isArray(tasksData) ? tasksData : 
+                      Array.isArray(tasksData?.tasks) ? tasksData.tasks : 
+                      [];
+      
+      let categoriesArray = Array.isArray(categoriesData) ? categoriesData : 
+                           Array.isArray(categoriesData?.categories) ? categoriesData.categories : 
+                           [];
+      
+      // Map backend field names to frontend field names for categories  
+      categoriesArray = categoriesArray.map(cat => {
+        console.log('Mapping category:', cat);
+        return {
+          id: cat.id,
+          nombre: cat.name || cat.nombre,
+          descripcion: cat.description || cat.descripcion,
+          color: cat.color || '#6366f1'
+        };
+      });
+
+      // Ensure default categories exist (Trabajo, Estudio, Personal)
+      const defaultCategories = [
+        { nombre: 'Trabajo', descripcion: 'Tareas relacionadas con actividades laborales' },
+        { nombre: 'Estudio', descripcion: 'Tareas y actividades académicas' },
+        { nombre: 'Personal', descripcion: 'Tareas y actividades personales' }
+      ];
+
+      for (const defaultCat of defaultCategories) {
+        const exists = categoriesArray.find(cat => 
+          cat.nombre && cat.nombre.toLowerCase().trim() === defaultCat.nombre.toLowerCase().trim()
+        );
+        
+        if (!exists) {
+          try {
+            console.log(`Creating missing default category: ${defaultCat.nombre}`);
+            console.log('Current categories:', categoriesArray.map(c => ({id: c.id, nombre: c.nombre})));
+            
+            const response = await apiCall('/protected/categories', {
+              method: 'POST',
+              body: JSON.stringify({
+                name: defaultCat.nombre,
+                description: defaultCat.descripcion
+              })
+            });
+            
+            const newCategory = response.category || response;
+            const mappedCategory = {
+              id: newCategory.id,
+              nombre: newCategory.name || newCategory.nombre,
+              descripcion: newCategory.description || newCategory.descripcion,
+              color: newCategory.color || '#6366f1'
+            };
+            
+            categoriesArray.push(mappedCategory);
+            console.log(`Created default category: ${defaultCat.nombre} with ID: ${mappedCategory.id}`);
+          } catch (error) {
+            console.error(`Failed to create default category ${defaultCat.nombre}:`, error);
+          }
+        } else {
+          console.log(`Default category ${defaultCat.nombre} already exists with ID: ${exists.id}`);
+        }
+      }
+      
+      // Map backend field names to frontend field names for tasks
+      tasksArray = tasksArray.map(task => {
+        console.log('Mapping task:', task);
+        return {
+          id: task.id,
+          texto_tarea: task.task_text || task.texto_tarea,
+          id_categoria: task.category_id !== undefined ? task.category_id : 
+                       task.category?.id !== undefined ? task.category.id : task.id_categoria,
+          id_estado: task.state_id !== undefined ? task.state_id : 
+                    task.state?.id !== undefined ? task.state.id : task.id_estado,
+          fecha_creacion: task.creation_date || task.fecha_creacion,
+          fecha_finalizacion: task.end_date || task.fecha_finalizacion,
+          // Use the category object directly from backend
+          categoria: task.category ? {
+            id: task.category.id,
+            nombre: task.category.name,
+            descripcion: task.category.description,
+            color: task.category.color || '#6366f1'
+          } : null,
+          // Use the state object directly from backend  
+          estado: task.state ? {
+            id: task.state.id,
+            descripcion: task.state.description === 'Not Started' ? 'Sin Empezar' :
+                        task.state.description === 'Started' ? 'En Progreso' :
+                        task.state.description === 'Finished' ? 'Completada' : task.state.description
+          } : null
+        };
+      });
+      
+      console.log('Setting tasks array (mapped):', tasksArray);
+      console.log('Setting categories array (mapped):', categoriesArray);
+      console.log('Sample task after mapping:', tasksArray[0]);
+      console.log('Categories available for matching:', categoriesArray.map(c => ({id: c.id, nombre: c.nombre})));
+      console.log('Task category info:', tasksArray.map(t => ({taskId: t.id, categoryId: t.id_categoria, categoryName: t.categoria?.nombre})));
+      
+      setTasks(tasksArray);
+      setCategories(categoriesArray);
     } catch (error) {
       console.error('Failed to load data:', error);
-      alert('Backend endpoints for tasks and categories not implemented yet');
+      // Don't show alert if it's a token expiration (handled by apiCall)
+      if (!error.message.includes('Token expired')) {
+        alert('Error al cargar datos: ' + error.message);
+      }
     }
   };
 
@@ -252,44 +356,50 @@ const TodoApp = () => {
     }
   };
 
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = Array.isArray(tasks) ? tasks.filter(task => {
     const categoryMatch = selectedCategory === 'all' || task.id_categoria === parseInt(selectedCategory);
     const statusMatch = selectedStatus === 'all' || task.id_estado === parseInt(selectedStatus);
+    
+    // Debug logging
+    if (selectedCategory !== 'all') {
+      console.log('Filtering by category:', selectedCategory);
+      console.log('Task category ID:', task.id_categoria);
+      console.log('Category match:', categoryMatch);
+    }
+    
     return categoryMatch && statusMatch;
-  });
+  }) : [];
 
   const addTask = async () => {
     if (newTask.trim()) {
       try {
-        const token = localStorage.getItem('token');
+        // Format date properly for backend (YYYY-MM-DD)
+        let formattedEndDate = null;
+        if (newTaskDueDate) {
+          const date = new Date(newTaskDueDate);
+          if (!isNaN(date.getTime())) {
+            formattedEndDate = date.toISOString().split('T')[0]; // Gets YYYY-MM-DD format
+          }
+        }
+        
         const taskData = {
-          texto_tarea: newTask,
-          id_categoria: parseInt(newTaskCategory) || 1,
-          fecha_finalizacion: newTaskDueDate || null,
-          id_estado: newTaskStatus
+          task_text: newTask,  // Backend expects task_text
+          category_id: parseInt(newTaskCategory) || null,  // Backend expects category_id
+          end_date: formattedEndDate,  // Backend expects end_date in YYYY-MM-DD format
+          state_id: newTaskStatus  // Backend expects state_id
         };
         
-        const response = await fetch('http://localhost:8080/api/tasks', {
+        console.log('Sending new task:', taskData);
+        
+        const newTaskResponse = await apiCall('/protected/tasks', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
           body: JSON.stringify(taskData)
         });
-
-        if (response.status === 401) {
-          logout();
-          return;
-        }
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Error creating task');
-        }
         
-        const newTaskResponse = await response.json();
-        setTasks([...tasks, newTaskResponse]);
+        console.log('Task created successfully:', newTaskResponse);
+        
+        // Reload data to get fresh list with all relations
+        await loadData();
         
         setNewTask('');
         setNewTaskCategory('');
@@ -297,7 +407,64 @@ const TodoApp = () => {
         setNewTaskStatus(1);
         setShowAddTask(false);
       } catch (error) {
-        alert('Error al crear tarea: ' + error.message);
+        console.error('Full error details:', error);
+        
+        if (error.message.includes('duplicate key') || error.message.includes('unique constraint')) {
+          alert('Error de base de datos: Conflicto de ID. Esto puede ocurrir si la secuencia de la base de datos está desincronizada. Contacta al administrador del sistema.');
+        } else {
+          alert('Error al crear tarea: ' + error.message);
+        }
+      }
+    }
+  };
+
+  const updateTask = async () => {
+    if (editTaskData.texto_tarea.trim() && editingTask) {
+      try {
+        // Format date properly for backend (YYYY-MM-DD)
+        let formattedEndDate = null;
+        if (editTaskData.fecha_finalizacion) {
+          const date = new Date(editTaskData.fecha_finalizacion);
+          if (!isNaN(date.getTime())) {
+            formattedEndDate = date.toISOString().split('T')[0]; // Gets YYYY-MM-DD format
+          }
+        }
+        
+        const taskData = {
+          task_text: editTaskData.texto_tarea,  // Backend expects task_text
+          category_id: parseInt(editTaskData.id_categoria) || null,  // Backend expects category_id
+          end_date: formattedEndDate,  // Backend expects end_date in YYYY-MM-DD format
+          state_id: editTaskData.id_estado  // Backend expects state_id
+        };
+        
+        console.log('Sending task update:', taskData);
+        
+        await apiCall(`/protected/tasks/${editingTask.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(taskData)
+        });
+        
+        // Reload data to get fresh list
+        await loadData();
+        
+        setEditingTask(null);
+        setEditTaskData({ texto_tarea: '', id_categoria: '', fecha_finalizacion: '', id_estado: 1 });
+      } catch (error) {
+        alert('Error al actualizar tarea: ' + error.message);
+      }
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+      try {
+        await apiCall(`/protected/tasks/${taskId}`, {
+          method: 'DELETE'
+        });
+        
+        setTasks(Array.isArray(tasks) ? tasks.filter(t => t.id !== taskId) : []);
+      } catch (error) {
+        alert('Error al eliminar tarea: ' + error.message);
       }
     }
   };
@@ -305,85 +472,155 @@ const TodoApp = () => {
   const createCategory = async () => {
     if (newCategoryName.trim()) {
       try {
-        const token = localStorage.getItem('token');
         const categoryData = {
-          nombre: newCategoryName,
-          descripcion: newCategoryDescription
+          name: newCategoryName,  // Backend expects name
+          description: newCategoryDescription  // Backend expects description
         };
         
-        const response = await fetch('http://localhost:8080/api/categories', {
+        console.log('Creating category:', categoryData);
+        
+        const response = await apiCall('/protected/categories', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
           body: JSON.stringify(categoryData)
         });
-
-        if (response.status === 401) {
-          logout();
-          return;
-        }
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Error creating category');
-        }
         
-        const newCategoryResponse = await response.json();
-        setCategories([...categories, newCategoryResponse]);
+        console.log('Category creation response:', response);
         
-        setNewTaskCategory(newCategoryResponse.id.toString());
+        // Handle different response formats
+        const newCategory = response.category || response;
+        
+        // Map backend response to frontend format
+        const mappedCategory = {
+          id: newCategory.id,
+          nombre: newCategory.name || newCategory.nombre,
+          descripcion: newCategory.description || newCategory.descripcion,
+          color: newCategory.color || '#6366f1'
+        };
+        
+        console.log('Mapped new category:', mappedCategory);
+        
+        // Add the new category to the local state
+        const updatedCategories = Array.isArray(categories) ? [...categories, mappedCategory] : [mappedCategory];
+        setCategories(updatedCategories);
+        
+        // Select the newly created category
+        setNewTaskCategory(mappedCategory.id.toString());
+        console.log('Selected new category:', mappedCategory.id.toString());
         
         setNewCategoryName('');
         setNewCategoryDescription('');
         setShowCreateCategory(false);
       } catch (error) {
+        console.error('Error creating category:', error);
         alert('Error al crear categoría: ' + error.message);
+      }
+    }
+  };
+
+  const deleteCategory = async (categoryId) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar esta categoría? Las tareas asociadas quedarán sin categoría.')) {
+      try {
+        await apiCall(`/protected/categories/${categoryId}`, {
+          method: 'DELETE'
+        });
+        
+        setCategories(Array.isArray(categories) ? categories.filter(c => c.id !== categoryId) : []);
+        
+        // Update tasks that were using this category
+        setTasks(Array.isArray(tasks) ? tasks.map(task => 
+          task.id_categoria === categoryId 
+            ? { ...task, id_categoria: null, categoria: null }
+            : task
+        ) : []);
+      } catch (error) {
+        alert('Error al eliminar categoría: ' + error.message);
       }
     }
   };
 
   const toggleTaskStatus = async (taskId) => {
     try {
-      const token = localStorage.getItem('token');
-      const task = tasks.find(t => t.id === taskId);
-      const newStatus = task.id_estado === 3 ? 1 : task.id_estado + 1;
-      
-      const response = await fetch(`http://localhost:8080/api/tasks/${taskId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ id_estado: newStatus })
-      });
-
-      if (response.status === 401) {
-        logout();
+      const task = Array.isArray(tasks) ? tasks.find(t => t.id === taskId) : null;
+      if (!task) {
+        alert('Tarea no encontrada');
         return;
       }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Error updating task');
+      
+      const newStatus = task.id_estado === 3 ? 1 : task.id_estado + 1;
+      
+      // Format date properly for backend (YYYY-MM-DD)
+      let formattedEndDate = null;
+      if (task.fecha_finalizacion) {
+        const date = new Date(task.fecha_finalizacion);
+        if (!isNaN(date.getTime())) {
+          formattedEndDate = date.toISOString().split('T')[0]; // Gets YYYY-MM-DD format
+        }
       }
+      
+      console.log('Sending task update:', {
+        task_text: task.texto_tarea,
+        category_id: task.id_categoria,
+        end_date: formattedEndDate,
+        state_id: newStatus
+      });
+      
+      await apiCall(`/protected/tasks/${taskId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ 
+          task_text: task.texto_tarea,  // Backend expects task_text
+          category_id: task.id_categoria,  // Backend expects category_id
+          end_date: formattedEndDate,  // Backend expects end_date in YYYY-MM-DD format
+          state_id: newStatus  // Backend expects state_id
+        })
+      });
 
-      setTasks(tasks.map(t => {
+      // Update the task in the local state
+      setTasks(Array.isArray(tasks) ? tasks.map(t => {
         if (t.id === taskId) {
           return {
             ...t,
             id_estado: newStatus,
             estado: { 
-              descripcion: newStatus === 1 ? 'Sin Empezar' : newStatus === 2 ? 'Empezada' : 'Finalizada' 
+              id: newStatus,
+              descripcion: newStatus === 1 ? 'Sin Empezar' : newStatus === 2 ? 'En Progreso' : 'Completada' 
             }
           };
         }
         return t;
-      }));
+      }) : []);
     } catch (error) {
       alert('Error al actualizar tarea: ' + error.message);
     }
+  };
+
+  // Helper function to check if a task is overdue
+  const isTaskOverdue = (task) => {
+    if (!task.fecha_finalizacion || task.id_estado === 3) return false; // Completed tasks are never overdue
+    const today = new Date();
+    const dueDate = new Date(task.fecha_finalizacion);
+    today.setHours(0, 0, 0, 0); // Reset time to compare only dates
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate < today;
+  };
+
+  const startEditTask = (task) => {
+    setEditingTask(task);
+    
+    // Format the date for the date input field (YYYY-MM-DD)
+    let formattedDate = '';
+    if (task.fecha_finalizacion) {
+      const date = new Date(task.fecha_finalizacion);
+      if (!isNaN(date.getTime())) {
+        formattedDate = date.toISOString().split('T')[0];
+      }
+    }
+    
+    setEditTaskData({
+      texto_tarea: task.texto_tarea,
+      id_categoria: task.id_categoria?.toString() || '',
+      fecha_finalizacion: formattedDate,
+      id_estado: task.id_estado
+    });
   };
 
   if (!isAuthenticated) {
@@ -508,13 +745,11 @@ const TodoApp = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">¡Hola, {user?.nombre_usuario}!</h1>
-                <p className="text-gray-600">Tienes {filteredTasks.filter(t => t.id_estado !== 3).length} tareas pendientes</p>
+                <p className="text-gray-600">Tienes {Array.isArray(filteredTasks) ? filteredTasks.filter(t => t.id_estado !== 3).length : 0} tareas pendientes</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">
-                REAL DATA
-              </span>
+
               <button
                 onClick={() => setShowAddTask(true)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl flex items-center space-x-2 transition-all duration-300 transform hover:scale-105 shadow-lg"
@@ -542,39 +777,49 @@ const TodoApp = () => {
                 Filtros
               </h2>
               
-              {/* Category Filter */}
-              <div className="mb-6">
-                <h3 className="text-gray-700 mb-3 font-medium">Categorías</h3>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => setSelectedCategory('all')}
-                    className={`w-full text-left px-4 py-2 rounded-xl transition-all ${
-                      selectedCategory === 'all' 
-                        ? 'bg-indigo-100 text-indigo-700' 
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    Todas
-                  </button>
-                  {categories.map(cat => (
+              {/* Category Filter - Only show if user has tasks with categories */}
+              {sidebarCategories.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-gray-700 mb-3 font-medium">Categorías</h3>
+                  <div className="space-y-2">
                     <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id.toString())}
-                      className={`w-full text-left px-4 py-2 rounded-xl transition-all flex items-center ${
-                        selectedCategory === cat.id.toString() 
+                      onClick={() => setSelectedCategory('all')}
+                      className={`w-full text-left px-4 py-2 rounded-xl transition-all ${
+                        selectedCategory === 'all' 
                           ? 'bg-indigo-100 text-indigo-700' 
                           : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
-                      <div 
-                        className="w-3 h-3 rounded-full mr-3"
-                        style={{ backgroundColor: cat.color }}
-                      />
-                      {cat.nombre}
+                      Todas
                     </button>
-                  ))}
+                    {sidebarCategories.map(cat => (
+                      <div key={cat.id} className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setSelectedCategory(cat.id.toString())}
+                          className={`flex-1 text-left px-4 py-2 rounded-xl transition-all flex items-center ${
+                            selectedCategory === cat.id.toString() 
+                              ? 'bg-indigo-100 text-indigo-700' 
+                              : 'text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div 
+                            className="w-3 h-3 rounded-full mr-3"
+                            style={{ backgroundColor: cat.color || '#6366f1' }}
+                          />
+                          {cat.nombre}
+                        </button>
+                        <button
+                          onClick={() => deleteCategory(cat.id)}
+                          className="p-1 text-red-500 hover:text-red-700 transition-colors"
+                          title="Eliminar categoría"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Status Filter */}
               <div>
@@ -600,16 +845,27 @@ const TodoApp = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Message for new users */}
+              {Array.isArray(tasks) && tasks.length === 0 && (
+                <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <p className="text-blue-700 text-sm">
+                    ¡Bienvenido! Crea tu primera tarea para comenzar a organizar tu día.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Tasks List */}
           <div className="lg:col-span-3">
             <div className="space-y-4">
-              {filteredTasks.map(task => (
+              {Array.isArray(filteredTasks) && filteredTasks.map(task => {
+                const isOverdue = isTaskOverdue(task);
+                return (
                 <div 
                   key={task.id} 
-                  className="bg-white rounded-2xl p-6 border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
+                  className={`bg-white rounded-2xl p-6 border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4 flex-1">
@@ -621,48 +877,85 @@ const TodoApp = () => {
                       </button>
                       
                       <div className="flex-1">
-                        <h3 className={`text-lg font-medium ${task.id_estado === 3 ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                          {task.texto_tarea}
-                        </h3>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className={`text-lg font-medium ${task.id_estado === 3 ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                            {task.texto_tarea}
+                          </h3>
+                          {isOverdue && (
+                            <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                              VENCIDA
+                            </span>
+                          )}
+                        </div>
                         
                         <div className="flex items-center space-x-4 mt-3">
                           <span 
                             className="px-3 py-1 rounded-full text-sm font-medium"
                             style={{ 
-                              backgroundColor: `${task.categoria?.color}20`,
+                              backgroundColor: `${task.categoria?.color || '#6366f1'}20`,
                               color: task.categoria?.color || '#6366f1'
                             }}
                           >
-                            {task.categoria?.nombre || 'Sin categoría'}
+                            {task.categoria?.nombre || 
+                             (task.id_categoria ? `Categoría ${task.id_categoria}` : 'Sin categoría')}
                           </span>
                           
                           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(task.id_estado)}`}>
-                            {task.estado?.descripcion || 'Sin estado'}
+                            {task.estado?.descripcion || 
+                             (task.id_estado === 1 ? 'Sin Empezar' : 
+                              task.id_estado === 2 ? 'En Progreso' : 
+                              task.id_estado === 3 ? 'Completada' : 'Sin estado')}
                           </span>
                         </div>
                         
                         <div className="flex items-center text-gray-500 text-sm mt-2">
                           <Calendar className="w-4 h-4 mr-2" />
-                          Creada: {new Date(task.fecha_creacion).toLocaleDateString('es-ES')}
+                          Creada: {task.fecha_creacion ? new Date(task.fecha_creacion).toLocaleDateString('es-ES') : 'Fecha no disponible'}
                           {task.fecha_finalizacion && (
-                            <span className="ml-4">
+                            <span className={`ml-4 ${isOverdue ? 'text-red-600 font-medium' : ''}`}>
                               Vence: {new Date(task.fecha_finalizacion).toLocaleDateString('es-ES')}
+                              {isOverdue && ' ⚠️'}
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
+                    
+                    <div className="flex items-center space-x-2 ml-4">
+                      <button
+                        onClick={() => startEditTask(task)}
+                        className="p-2 text-blue-500 hover:text-blue-700 transition-colors"
+                        title="Editar tarea"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteTask(task.id)}
+                        className="p-2 text-red-500 hover:text-red-700 transition-colors"
+                        title="Eliminar tarea"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
+              )})}
 
-              {filteredTasks.length === 0 && (
+
+              {(!Array.isArray(filteredTasks) || filteredTasks.length === 0) && (
                 <div className="bg-white rounded-2xl p-12 border border-gray-200 shadow-lg text-center">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                     <CheckCircle2 className="w-8 h-8 text-gray-400" />
                   </div>
-                  <h3 className="text-xl font-medium text-gray-900 mb-2">¡Todo listo!</h3>
-                  <p className="text-gray-600">No hay tareas que coincidan con los filtros seleccionados.</p>
+                  <h3 className="text-xl font-medium text-gray-900 mb-2">
+                    {!Array.isArray(tasks) ? '¡Cargando...' : '¡Todo listo!'}
+                  </h3>
+                  <p className="text-gray-600">
+                    {!Array.isArray(tasks) 
+                      ? 'Cargando tus tareas...' 
+                      : 'No hay tareas que coincidan con los filtros seleccionados.'
+                    }
+                  </p>
                 </div>
               )}
             </div>
@@ -677,7 +970,6 @@ const TodoApp = () => {
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Nueva Tarea</h2>
             
             <div className="space-y-6">
-              {/* Description */}
               <div>
                 <label className="block text-gray-700 mb-2 font-medium">Descripción *</label>
                 <textarea
@@ -690,7 +982,6 @@ const TodoApp = () => {
                 />
               </div>
 
-              {/* Due Date */}
               <div>
                 <label className="block text-gray-700 mb-2 font-medium">Fecha de vencimiento</label>
                 <input
@@ -701,7 +992,6 @@ const TodoApp = () => {
                 />
               </div>
 
-              {/* Category Selection */}
               <div>
                 <label className="block text-gray-700 mb-2 font-medium">Categoría</label>
                 <div className="space-y-3">
@@ -711,7 +1001,7 @@ const TodoApp = () => {
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
                     <option value="">Seleccionar categoría</option>
-                    {categories.map(cat => (
+                    {taskModalCategories.map(cat => (
                       <option key={cat.id} value={cat.id}>
                         {cat.nombre}
                       </option>
@@ -727,7 +1017,6 @@ const TodoApp = () => {
                     <span>Crear nueva categoría</span>
                   </button>
 
-                  {/* Create Category Form */}
                   {showCreateCategory && (
                     <div className="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-200">
                       <div>
@@ -776,22 +1065,9 @@ const TodoApp = () => {
                 </div>
               </div>
 
-              {/* Status Selection */}
-              <div>
-                <label className="block text-gray-700 mb-2 font-medium">Estado inicial</label>
-                <select
-                  value={newTaskStatus}
-                  onChange={(e) => setNewTaskStatus(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value={1}>Sin Empezar</option>
-                  <option value={2}>Empezada</option>
-                  <option value={3}>Finalizada</option>
-                </select>
-              </div>
+
             </div>
             
-            {/* Action Buttons */}
             <div className="flex space-x-3 mt-8">
               <button
                 onClick={() => {
@@ -814,6 +1090,98 @@ const TodoApp = () => {
                 className="flex-1 px-6 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 Crear Tarea
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 border border-gray-200 shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Editar Tarea</h2>
+              <button
+                onClick={() => {
+                  setEditingTask(null);
+                  setEditTaskData({ texto_tarea: '', id_categoria: '', fecha_finalizacion: '', id_estado: 1 });
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-gray-700 mb-2 font-medium">Descripción *</label>
+                <textarea
+                  value={editTaskData.texto_tarea}
+                  onChange={(e) => setEditTaskData({...editTaskData, texto_tarea: e.target.value})}
+                  placeholder="¿Qué necesitas hacer?"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 mb-2 font-medium">Fecha de vencimiento</label>
+                <input
+                  type="date"
+                  value={editTaskData.fecha_finalizacion}
+                  onChange={(e) => setEditTaskData({...editTaskData, fecha_finalizacion: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 mb-2 font-medium">Categoría</label>
+                <select
+                  value={editTaskData.id_categoria}
+                  onChange={(e) => setEditTaskData({...editTaskData, id_categoria: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="">Seleccionar categoría</option>
+                  {taskModalCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 mb-2 font-medium">Estado</label>
+                <select
+                  value={editTaskData.id_estado}
+                  onChange={(e) => setEditTaskData({...editTaskData, id_estado: parseInt(e.target.value)})}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value={1}>Sin Empezar</option>
+                  <option value={2}>En Progreso</option>
+                  <option value={3}>Completada</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 mt-8">
+              <button
+                onClick={() => {
+                  setEditingTask(null);
+                  setEditTaskData({ texto_tarea: '', id_categoria: '', fecha_finalizacion: '', id_estado: 1 });
+                }}
+                className="flex-1 px-6 py-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={updateTask}
+                disabled={!editTaskData.texto_tarea.trim()}
+                className="flex-1 px-6 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                Actualizar
               </button>
             </div>
           </div>
