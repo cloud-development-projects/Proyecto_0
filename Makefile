@@ -5,7 +5,7 @@
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  local       - Start full local environment (PostgreSQL + API)"
+	@echo "  local       - Start full local environment (PostgreSQL + API + Frontend)"
 	@echo "  build       - Build the Go application"
 	@echo "  logs        - Show logs from all containers"
 	@echo "  clean       - NUCLEAR: Stop and remove EVERYTHING (containers, volumes, networks, images)"
@@ -14,6 +14,7 @@ help:
 local:
 	@echo "Starting full local environment..."
 	docker-compose -f docker-compose.local.yml up -d
+	@echo "Frontend is running on http://localhost:3000"
 	@echo "API is running on http://localhost:8080"
 	@echo "PostgreSQL is running on localhost:5432"
 	@echo "Database initialized with tables and dummy data"
