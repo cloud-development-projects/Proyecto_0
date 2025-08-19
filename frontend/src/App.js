@@ -24,26 +24,22 @@ const TodoApp = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [editTaskData, setEditTaskData] = useState({ texto_tarea: '', id_categoria: '', fecha_finalizacion: '', id_estado: 1 });
 
-  // Computed categories for sidebar - only show categories that are used in tasks
+  // Sidebar categories - only categories used in tasks
   const sidebarCategories = useMemo(() => {
-    if (!Array.isArray(tasks) || tasks.length === 0) {
-      return []; // No categories for new users with no tasks
-    }
+    if (!Array.isArray(tasks) || tasks.length === 0) return [];
     
-    // Get unique category IDs from tasks
     const usedCategoryIds = [...new Set(
       tasks
         .filter(task => task.id_categoria !== null && task.id_categoria !== undefined)
         .map(task => task.id_categoria)
     )];
     
-    // Return categories that are actually used in tasks
     return Array.isArray(categories) 
       ? categories.filter(cat => usedCategoryIds.includes(cat.id))
       : [];
   }, [tasks, categories]);
 
-  // Categories for add/edit task modals - show all available categories
+  // Modal categories - all available categories
   const taskModalCategories = useMemo(() => {
     return Array.isArray(categories) ? categories : [];
   }, [categories]);
@@ -51,16 +47,16 @@ const TodoApp = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
+    
     if (token && userData) {
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
       setIsAuthenticated(true);
       loadData();
     }
-  }, []); 
+  }, []);
 
-  // Reset category filter when sidebar categories change
   useEffect(() => {
-    // If current selectedCategory is not 'all' and not in sidebarCategories, reset to 'all'
     if (selectedCategory !== 'all' && sidebarCategories.length > 0) {
       const categoryExists = sidebarCategories.some(cat => cat.id.toString() === selectedCategory);
       if (!categoryExists) {
@@ -119,16 +115,17 @@ const TodoApp = () => {
       }
 
       const data = await response.json();
-      
       const userInfo = parseJWTPayload(data.token);
+
       const userData = {
-        id: userInfo.uid,
-        nombre_usuario: userInfo.username,
-        imagen_perfil: null
+        id: userInfo.uid || data.id,
+        nombre_usuario: userInfo.username || data.username,
+        imagen_perfil: data.profile_img
       };
 
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(userData));
+
       setUser(userData);
       setIsAuthenticated(true);
       loadData();
@@ -147,11 +144,6 @@ const TodoApp = () => {
 
     setLoading(true);
     try {
-      console.log('Sending registration data:', {
-        username: registerData.username,
-        password: registerData.password ? '[REDACTED]' : 'EMPTY'
-      });
-
       const response = await fetch('http://localhost:8080/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,22 +153,15 @@ const TodoApp = () => {
         })
       });
 
-      console.log('Registration response status:', response.status);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.log('Registration error data:', errorData);
         throw new Error(errorData.error || `Error al registrar usuario (${response.status})`);
       }
-
-      const responseData = await response.json();
-      console.log('Registration successful:', responseData);
 
       alert('Usuario registrado exitosamente. Por favor inicia sesión.');
       setShowLogin(true);
       setRegisterData({ username: '', password: '', confirmPassword: '' });
     } catch (error) {
-      console.error('Registration error:', error);
       alert('Error en registro: ' + error.message);
     } finally {
       setLoading(false);
@@ -223,115 +208,49 @@ const TodoApp = () => {
         apiCall('/protected/tasks'),
         apiCall('/protected/categories')
       ]);
-      
-      console.log('Tasks data received:', tasksData);
-      console.log('Categories data received:', categoriesData);
-      console.log('Sample raw task:', tasksData?.tasks?.[0] || tasksData?.[0]);
-      console.log('Sample raw category:', categoriesData?.categories?.[0] || categoriesData?.[0]);
-      
-      // Handle different response formats from backend
+
       let tasksArray = Array.isArray(tasksData) ? tasksData : 
-                      Array.isArray(tasksData?.tasks) ? tasksData.tasks : 
-                      [];
+                      Array.isArray(tasksData?.tasks) ? tasksData.tasks : [];
       
       let categoriesArray = Array.isArray(categoriesData) ? categoriesData : 
-                           Array.isArray(categoriesData?.categories) ? categoriesData.categories : 
-                           [];
+                           Array.isArray(categoriesData?.categories) ? categoriesData.categories : [];
       
-      // Map backend field names to frontend field names for categories  
-      categoriesArray = categoriesArray.map(cat => {
-        console.log('Mapping category:', cat);
-        return {
-          id: cat.id,
-          nombre: cat.name || cat.nombre,
-          descripcion: cat.description || cat.descripcion,
-          color: cat.color || '#6366f1'
-        };
-      });
+      // Map categories
+      categoriesArray = categoriesArray.map(cat => ({
+        id: cat.id,
+        nombre: cat.name || cat.nombre,
+        descripcion: cat.description || cat.descripcion,
+        color: cat.color || '#6366f1'
+      }));
 
-      // Ensure default categories exist (Trabajo, Estudio, Personal)
-      const defaultCategories = [
-        { nombre: 'Trabajo', descripcion: 'Tareas relacionadas con actividades laborales' },
-        { nombre: 'Estudio', descripcion: 'Tareas y actividades académicas' },
-        { nombre: 'Personal', descripcion: 'Tareas y actividades personales' }
-      ];
-
-      for (const defaultCat of defaultCategories) {
-        const exists = categoriesArray.find(cat => 
-          cat.nombre && cat.nombre.toLowerCase().trim() === defaultCat.nombre.toLowerCase().trim()
-        );
-        
-        if (!exists) {
-          try {
-            console.log(`Creating missing default category: ${defaultCat.nombre}`);
-            console.log('Current categories:', categoriesArray.map(c => ({id: c.id, nombre: c.nombre})));
-            
-            const response = await apiCall('/protected/categories', {
-              method: 'POST',
-              body: JSON.stringify({
-                name: defaultCat.nombre,
-                description: defaultCat.descripcion
-              })
-            });
-            
-            const newCategory = response.category || response;
-            const mappedCategory = {
-              id: newCategory.id,
-              nombre: newCategory.name || newCategory.nombre,
-              descripcion: newCategory.description || newCategory.descripcion,
-              color: newCategory.color || '#6366f1'
-            };
-            
-            categoriesArray.push(mappedCategory);
-            console.log(`Created default category: ${defaultCat.nombre} with ID: ${mappedCategory.id}`);
-          } catch (error) {
-            console.error(`Failed to create default category ${defaultCat.nombre}:`, error);
-          }
-        } else {
-          console.log(`Default category ${defaultCat.nombre} already exists with ID: ${exists.id}`);
-        }
-      }
-      
-      // Map backend field names to frontend field names for tasks
-      tasksArray = tasksArray.map(task => {
-        console.log('Mapping task:', task);
-        return {
-          id: task.id,
-          texto_tarea: task.task_text || task.texto_tarea,
-          id_categoria: task.category_id !== undefined ? task.category_id : 
-                       task.category?.id !== undefined ? task.category.id : task.id_categoria,
-          id_estado: task.state_id !== undefined ? task.state_id : 
-                    task.state?.id !== undefined ? task.state.id : task.id_estado,
-          fecha_creacion: task.creation_date || task.fecha_creacion,
-          fecha_finalizacion: task.end_date || task.fecha_finalizacion,
-          // Use the category object directly from backend
-          categoria: task.category ? {
-            id: task.category.id,
-            nombre: task.category.name,
-            descripcion: task.category.description,
-            color: task.category.color || '#6366f1'
-          } : null,
-          // Use the state object directly from backend  
-          estado: task.state ? {
-            id: task.state.id,
-            descripcion: task.state.description === 'Not Started' ? 'Sin Empezar' :
-                        task.state.description === 'Started' ? 'En Progreso' :
-                        task.state.description === 'Finished' ? 'Completada' : task.state.description
-          } : null
-        };
-      });
-      
-      console.log('Setting tasks array (mapped):', tasksArray);
-      console.log('Setting categories array (mapped):', categoriesArray);
-      console.log('Sample task after mapping:', tasksArray[0]);
-      console.log('Categories available for matching:', categoriesArray.map(c => ({id: c.id, nombre: c.nombre})));
-      console.log('Task category info:', tasksArray.map(t => ({taskId: t.id, categoryId: t.id_categoria, categoryName: t.categoria?.nombre})));
+      // Map tasks
+      tasksArray = tasksArray.map(task => ({
+        id: task.id,
+        texto_tarea: task.task_text || task.texto_tarea,
+        id_categoria: task.category_id !== undefined ? task.category_id : 
+                     task.category?.id !== undefined ? task.category.id : task.id_categoria,
+        id_estado: task.state_id !== undefined ? task.state_id : 
+                  task.state?.id !== undefined ? task.state.id : task.id_estado,
+        fecha_creacion: task.creation_date || task.fecha_creacion,
+        fecha_finalizacion: task.end_date || task.fecha_finalizacion,
+        categoria: task.category ? {
+          id: task.category.id,
+          nombre: task.category.name,
+          descripcion: task.category.description,
+          color: task.category.color || '#6366f1'
+        } : null,
+        estado: task.state ? {
+          id: task.state.id,
+          descripcion: task.state.description === 'Not Started' ? 'Sin Empezar' :
+                      task.state.description === 'Started' ? 'En Progreso' :
+                      task.state.description === 'Finished' ? 'Completada' : task.state.description
+        } : null
+      }));
       
       setTasks(tasksArray);
       setCategories(categoriesArray);
     } catch (error) {
       console.error('Failed to load data:', error);
-      // Don't show alert if it's a token expiration (handled by apiCall)
       if (!error.message.includes('Token expired')) {
         alert('Error al cargar datos: ' + error.message);
       }
@@ -359,46 +278,32 @@ const TodoApp = () => {
   const filteredTasks = Array.isArray(tasks) ? tasks.filter(task => {
     const categoryMatch = selectedCategory === 'all' || task.id_categoria === parseInt(selectedCategory);
     const statusMatch = selectedStatus === 'all' || task.id_estado === parseInt(selectedStatus);
-    
-    // Debug logging
-    if (selectedCategory !== 'all') {
-      console.log('Filtering by category:', selectedCategory);
-      console.log('Task category ID:', task.id_categoria);
-      console.log('Category match:', categoryMatch);
-    }
-    
     return categoryMatch && statusMatch;
   }) : [];
 
   const addTask = async () => {
     if (newTask.trim()) {
       try {
-        // Format date properly for backend (YYYY-MM-DD)
         let formattedEndDate = null;
         if (newTaskDueDate) {
           const date = new Date(newTaskDueDate);
           if (!isNaN(date.getTime())) {
-            formattedEndDate = date.toISOString().split('T')[0]; // Gets YYYY-MM-DD format
+            formattedEndDate = date.toISOString().split('T')[0];
           }
         }
         
         const taskData = {
-          task_text: newTask,  // Backend expects task_text
-          category_id: parseInt(newTaskCategory) || null,  // Backend expects category_id
-          end_date: formattedEndDate,  // Backend expects end_date in YYYY-MM-DD format
-          state_id: newTaskStatus  // Backend expects state_id
+          task_text: newTask,
+          category_id: parseInt(newTaskCategory) || null,
+          end_date: formattedEndDate,
+          state_id: newTaskStatus
         };
         
-        console.log('Sending new task:', taskData);
-        
-        const newTaskResponse = await apiCall('/protected/tasks', {
+        await apiCall('/protected/tasks', {
           method: 'POST',
           body: JSON.stringify(taskData)
         });
         
-        console.log('Task created successfully:', newTaskResponse);
-        
-        // Reload data to get fresh list with all relations
         await loadData();
         
         setNewTask('');
@@ -407,13 +312,8 @@ const TodoApp = () => {
         setNewTaskStatus(1);
         setShowAddTask(false);
       } catch (error) {
-        console.error('Full error details:', error);
-        
-        if (error.message.includes('duplicate key') || error.message.includes('unique constraint')) {
-          alert('Error de base de datos: Conflicto de ID. Esto puede ocurrir si la secuencia de la base de datos está desincronizada. Contacta al administrador del sistema.');
-        } else {
-          alert('Error al crear tarea: ' + error.message);
-        }
+        console.error('Error creating task:', error);
+        alert('Error al crear tarea: ' + error.message);
       }
     }
   };
@@ -421,30 +321,26 @@ const TodoApp = () => {
   const updateTask = async () => {
     if (editTaskData.texto_tarea.trim() && editingTask) {
       try {
-        // Format date properly for backend (YYYY-MM-DD)
         let formattedEndDate = null;
         if (editTaskData.fecha_finalizacion) {
           const date = new Date(editTaskData.fecha_finalizacion);
           if (!isNaN(date.getTime())) {
-            formattedEndDate = date.toISOString().split('T')[0]; // Gets YYYY-MM-DD format
+            formattedEndDate = date.toISOString().split('T')[0];
           }
         }
         
         const taskData = {
-          task_text: editTaskData.texto_tarea,  // Backend expects task_text
-          category_id: parseInt(editTaskData.id_categoria) || null,  // Backend expects category_id
-          end_date: formattedEndDate,  // Backend expects end_date in YYYY-MM-DD format
-          state_id: editTaskData.id_estado  // Backend expects state_id
+          task_text: editTaskData.texto_tarea,
+          category_id: parseInt(editTaskData.id_categoria) || null,
+          end_date: formattedEndDate,
+          state_id: editTaskData.id_estado
         };
-        
-        console.log('Sending task update:', taskData);
         
         await apiCall(`/protected/tasks/${editingTask.id}`, {
           method: 'PUT',
           body: JSON.stringify(taskData)
         });
         
-        // Reload data to get fresh list
         await loadData();
         
         setEditingTask(null);
@@ -473,23 +369,16 @@ const TodoApp = () => {
     if (newCategoryName.trim()) {
       try {
         const categoryData = {
-          name: newCategoryName,  // Backend expects name
-          description: newCategoryDescription  // Backend expects description
+          name: newCategoryName,
+          description: newCategoryDescription
         };
-        
-        console.log('Creating category:', categoryData);
         
         const response = await apiCall('/protected/categories', {
           method: 'POST',
           body: JSON.stringify(categoryData)
         });
         
-        console.log('Category creation response:', response);
-        
-        // Handle different response formats
         const newCategory = response.category || response;
-        
-        // Map backend response to frontend format
         const mappedCategory = {
           id: newCategory.id,
           nombre: newCategory.name || newCategory.nombre,
@@ -497,16 +386,10 @@ const TodoApp = () => {
           color: newCategory.color || '#6366f1'
         };
         
-        console.log('Mapped new category:', mappedCategory);
-        
-        // Add the new category to the local state
         const updatedCategories = Array.isArray(categories) ? [...categories, mappedCategory] : [mappedCategory];
         setCategories(updatedCategories);
         
-        // Select the newly created category
         setNewTaskCategory(mappedCategory.id.toString());
-        console.log('Selected new category:', mappedCategory.id.toString());
-        
         setNewCategoryName('');
         setNewCategoryDescription('');
         setShowCreateCategory(false);
@@ -526,7 +409,6 @@ const TodoApp = () => {
         
         setCategories(Array.isArray(categories) ? categories.filter(c => c.id !== categoryId) : []);
         
-        // Update tasks that were using this category
         setTasks(Array.isArray(tasks) ? tasks.map(task => 
           task.id_categoria === categoryId 
             ? { ...task, id_categoria: null, categoria: null }
@@ -548,33 +430,24 @@ const TodoApp = () => {
       
       const newStatus = task.id_estado === 3 ? 1 : task.id_estado + 1;
       
-      // Format date properly for backend (YYYY-MM-DD)
       let formattedEndDate = null;
       if (task.fecha_finalizacion) {
         const date = new Date(task.fecha_finalizacion);
         if (!isNaN(date.getTime())) {
-          formattedEndDate = date.toISOString().split('T')[0]; // Gets YYYY-MM-DD format
+          formattedEndDate = date.toISOString().split('T')[0];
         }
       }
-      
-      console.log('Sending task update:', {
-        task_text: task.texto_tarea,
-        category_id: task.id_categoria,
-        end_date: formattedEndDate,
-        state_id: newStatus
-      });
       
       await apiCall(`/protected/tasks/${taskId}`, {
         method: 'PUT',
         body: JSON.stringify({ 
-          task_text: task.texto_tarea,  // Backend expects task_text
-          category_id: task.id_categoria,  // Backend expects category_id
-          end_date: formattedEndDate,  // Backend expects end_date in YYYY-MM-DD format
-          state_id: newStatus  // Backend expects state_id
+          task_text: task.texto_tarea,
+          category_id: task.id_categoria,
+          end_date: formattedEndDate,
+          state_id: newStatus
         })
       });
 
-      // Update the task in the local state
       setTasks(Array.isArray(tasks) ? tasks.map(t => {
         if (t.id === taskId) {
           return {
@@ -593,12 +466,11 @@ const TodoApp = () => {
     }
   };
 
-  // Helper function to check if a task is overdue
   const isTaskOverdue = (task) => {
-    if (!task.fecha_finalizacion || task.id_estado === 3) return false; // Completed tasks are never overdue
+    if (!task.fecha_finalizacion || task.id_estado === 3) return false;
     const today = new Date();
     const dueDate = new Date(task.fecha_finalizacion);
-    today.setHours(0, 0, 0, 0); // Reset time to compare only dates
+    today.setHours(0, 0, 0, 0);
     dueDate.setHours(0, 0, 0, 0);
     return dueDate < today;
   };
@@ -606,7 +478,6 @@ const TodoApp = () => {
   const startEditTask = (task) => {
     setEditingTask(task);
     
-    // Format the date for the date input field (YYYY-MM-DD)
     let formattedDate = '';
     if (task.fecha_finalizacion) {
       const date = new Date(task.fecha_finalizacion);
@@ -740,16 +611,18 @@ const TodoApp = () => {
         <div className="bg-white rounded-3xl p-6 mb-6 border border-gray-200 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center">
-                <User className="w-6 h-6 text-white" />
-              </div>
+              <img
+                src={user.imagen_perfil}
+                alt={user.nombre_usuario}
+                className="w-10 h-10 rounded-full"
+              />
+
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">¡Hola, {user?.nombre_usuario}!</h1>
                 <p className="text-gray-600">Tienes {Array.isArray(filteredTasks) ? filteredTasks.filter(t => t.id_estado !== 3).length : 0} tareas pendientes</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
-
               <button
                 onClick={() => setShowAddTask(true)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl flex items-center space-x-2 transition-all duration-300 transform hover:scale-105 shadow-lg"
@@ -777,7 +650,7 @@ const TodoApp = () => {
                 Filtros
               </h2>
               
-              {/* Category Filter - Only show if user has tasks with categories */}
+              {/* Category Filter */}
               {sidebarCategories.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-gray-700 mb-3 font-medium">Categorías</h3>
@@ -846,7 +719,7 @@ const TodoApp = () => {
                 </div>
               </div>
 
-              {/* Message for new users */}
+              {/* New user message */}
               {Array.isArray(tasks) && tasks.length === 0 && (
                 <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
                   <p className="text-blue-700 text-sm">
@@ -896,8 +769,7 @@ const TodoApp = () => {
                               color: task.categoria?.color || '#6366f1'
                             }}
                           >
-                            {task.categoria?.nombre || 
-                             (task.id_categoria ? `Categoría ${task.id_categoria}` : 'Sin categoría')}
+                            {task.categoria?.nombre || 'Sin categoría'}
                           </span>
                           
                           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(task.id_estado)}`}>
@@ -940,7 +812,6 @@ const TodoApp = () => {
                   </div>
                 </div>
               )})}
-
 
               {(!Array.isArray(filteredTasks) || filteredTasks.length === 0) && (
                 <div className="bg-white rounded-2xl p-12 border border-gray-200 shadow-lg text-center">
@@ -1064,8 +935,6 @@ const TodoApp = () => {
                   )}
                 </div>
               </div>
-
-
             </div>
             
             <div className="flex space-x-3 mt-8">

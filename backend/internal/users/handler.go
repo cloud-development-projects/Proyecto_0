@@ -93,7 +93,12 @@ func (h *Handler) Login(c *gin.Context) {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create token"})
         return
     }
-    c.JSON(http.StatusOK, gin.H{"token": token})
+    c.JSON(http.StatusOK, gin.H{
+        "token":       token,
+        "id":          user.ID,
+        "username":    user.Username,
+        "profile_img": user.ProfileImg, // adjust to your field name
+    })
 }
 
 // Logout invalidates the provided JWT by adding it to a revoked set (simulated server-side invalidation).
