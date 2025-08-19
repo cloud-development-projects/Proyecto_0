@@ -43,10 +43,54 @@ const TodoApp = () => {
       : [];
   }, [tasks, categories]);
 
-  // Categories for add task modal - first 3 from database
-  const addTaskCategories = useMemo(() => {
-    return Array.isArray(categories) ? categories.slice(0, 3) : [];
-  }, [categories]);
+  const [newlyCreatedCategoryIds, setNewlyCreatedCategoryIds] = useState([]);
+
+  // Categories for add/edit task modals - includes default categories + categories used in tasks + newly created
+  const taskModalCategories = useMemo(() => {
+    if (!Array.isArray(categories)) return [];
+    
+    // Get default categories (Trabajo, Estudio, Personal) - always show these
+    const defaultCategoryNames = ['Trabajo', 'Estudio', 'Personal'];
+    const defaultCategories = categories.filter(cat => 
+      defaultCategoryNames.some(name => 
+        cat.nombre.toLowerCase() === name.toLowerCase()
+      )
+    );
+    
+    // Get categories used in tasks
+    const usedCategoryIds = Array.isArray(tasks) ? [...new Set(
+      tasks
+        .filter(task => task.id_categoria !== null && task.id_categoria !== undefined)
+        .map(task => task.id_categoria)
+    )] : [];
+    
+    const usedCategories = categories.filter(cat => 
+      usedCategoryIds.includes(cat.id) && 
+      !defaultCategoryNames.some(name => 
+        cat.nombre.toLowerCase() === name.toLowerCase()
+      )
+    );
+    
+    // Get newly created categories (that aren't used in tasks yet and aren't default categories)
+    const newlyCreated = categories.filter(cat => 
+      newlyCreatedCategoryIds.includes(cat.id) && 
+      !usedCategoryIds.includes(cat.id) &&
+      !defaultCategoryNames.some(name => 
+        cat.nombre.toLowerCase() === name.toLowerCase()
+      )
+    );
+    
+    // Combine: default categories + used categories + newly created
+    const combined = [...defaultCategories, ...usedCategories, ...newlyCreated];
+    
+    console.log('taskModalCategories calculation:');
+    console.log('- Default categories:', defaultCategories.map(c => ({id: c.id, name: c.nombre})));
+    console.log('- Used in tasks:', usedCategories.map(c => ({id: c.id, name: c.nombre})));
+    console.log('- Newly created:', newlyCreated.map(c => ({id: c.id, name: c.nombre})));
+    console.log('- Final combined:', combined.map(c => ({id: c.id, name: c.nombre})));
+    
+    return combined;
+  }, [categories, tasks, newlyCreatedCategoryIds]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -57,6 +101,17 @@ const TodoApp = () => {
       loadData();
     }
   }, []); 
+
+  // Reset category filter when sidebar categories change
+  useEffect(() => {
+    // If current selectedCategory is not 'all' and not in sidebarCategories, reset to 'all'
+    if (selectedCategory !== 'all' && sidebarCategories.length > 0) {
+      const categoryExists = sidebarCategories.some(cat => cat.id.toString() === selectedCategory);
+      if (!categoryExists) {
+        setSelectedCategory('all');
+      }
+    }
+  }, [sidebarCategories, selectedCategory]);
 
   const API_BASE = 'http://localhost:8080/api';
 
@@ -227,6 +282,60 @@ const TodoApp = () => {
                            Array.isArray(categoriesData?.categories) ? categoriesData.categories : 
                            [];
       
+      // Map backend field names to frontend field names for categories  
+      categoriesArray = categoriesArray.map(cat => {
+        console.log('Mapping category:', cat);
+        return {
+          id: cat.id,
+          nombre: cat.name || cat.nombre,
+          descripcion: cat.description || cat.descripcion,
+          color: cat.color || '#6366f1'
+        };
+      });
+
+      // Ensure default categories exist (Trabajo, Estudio, Personal)
+      const defaultCategories = [
+        { nombre: 'Trabajo', descripcion: 'Tareas relacionadas con actividades laborales' },
+        { nombre: 'Estudio', descripcion: 'Tareas y actividades académicas' },
+        { nombre: 'Personal', descripcion: 'Tareas y actividades personales' }
+      ];
+
+      for (const defaultCat of defaultCategories) {
+        const exists = categoriesArray.find(cat => 
+          cat.nombre && cat.nombre.toLowerCase().trim() === defaultCat.nombre.toLowerCase().trim()
+        );
+        
+        if (!exists) {
+          try {
+            console.log(`Creating missing default category: ${defaultCat.nombre}`);
+            console.log('Current categories:', categoriesArray.map(c => ({id: c.id, nombre: c.nombre})));
+            
+            const response = await apiCall('/protected/categories', {
+              method: 'POST',
+              body: JSON.stringify({
+                name: defaultCat.nombre,
+                description: defaultCat.descripcion
+              })
+            });
+            
+            const newCategory = response.category || response;
+            const mappedCategory = {
+              id: newCategory.id,
+              nombre: newCategory.name || newCategory.nombre,
+              descripcion: newCategory.description || newCategory.descripcion,
+              color: newCategory.color || '#6366f1'
+            };
+            
+            categoriesArray.push(mappedCategory);
+            console.log(`Created default category: ${defaultCat.nombre} with ID: ${mappedCategory.id}`);
+          } catch (error) {
+            console.error(`Failed to create default category ${defaultCat.nombre}:`, error);
+          }
+        } else {
+          console.log(`Default category ${defaultCat.nombre} already exists with ID: ${exists.id}`);
+        }
+      }
+      
       // Map backend field names to frontend field names for tasks
       tasksArray = tasksArray.map(task => {
         console.log('Mapping task:', task);
@@ -253,17 +362,6 @@ const TodoApp = () => {
                         task.state.description === 'Started' ? 'En Progreso' :
                         task.state.description === 'Finished' ? 'Completada' : task.state.description
           } : null
-        };
-      });
-      
-      // Map backend field names to frontend field names for categories  
-      categoriesArray = categoriesArray.map(cat => {
-        console.log('Mapping category:', cat);
-        return {
-          id: cat.id,
-          nombre: cat.name || cat.nombre,
-          descripcion: cat.description || cat.descripcion,
-          color: cat.color || '#6366f1'
         };
       });
       
@@ -305,6 +403,14 @@ const TodoApp = () => {
   const filteredTasks = Array.isArray(tasks) ? tasks.filter(task => {
     const categoryMatch = selectedCategory === 'all' || task.id_categoria === parseInt(selectedCategory);
     const statusMatch = selectedStatus === 'all' || task.id_estado === parseInt(selectedStatus);
+    
+    // Debug logging
+    if (selectedCategory !== 'all') {
+      console.log('Filtering by category:', selectedCategory);
+      console.log('Task category ID:', task.id_categoria);
+      console.log('Category match:', categoryMatch);
+    }
+    
     return categoryMatch && statusMatch;
   }) : [];
 
@@ -335,6 +441,14 @@ const TodoApp = () => {
         });
         
         console.log('Task created successfully:', newTaskResponse);
+        
+        // If task was created with a newly created category, remove it from the newly created list
+        // since it's now "used in tasks"
+        if (newTaskCategory) {
+          const categoryId = parseInt(newTaskCategory);
+          setNewlyCreatedCategoryIds(prev => prev.filter(id => id !== categoryId));
+          console.log('Removed category from newly created list:', categoryId);
+        }
         
         // Reload data to get fresh list with all relations
         await loadData();
@@ -415,10 +529,14 @@ const TodoApp = () => {
           description: newCategoryDescription  // Backend expects description
         };
         
+        console.log('Creating category:', categoryData);
+        
         const response = await apiCall('/protected/categories', {
           method: 'POST',
           body: JSON.stringify(categoryData)
         });
+        
+        console.log('Category creation response:', response);
         
         // Handle different response formats
         const newCategory = response.category || response;
@@ -431,13 +549,24 @@ const TodoApp = () => {
           color: newCategory.color || '#6366f1'
         };
         
-        setCategories(Array.isArray(categories) ? [...categories, mappedCategory] : [mappedCategory]);
+        console.log('Mapped new category:', mappedCategory);
+        
+        const updatedCategories = Array.isArray(categories) ? [...categories, mappedCategory] : [mappedCategory];
+        setCategories(updatedCategories);
+        
+        // Add to newly created categories list so it appears in dropdown
+        setNewlyCreatedCategoryIds(prev => [...prev, mappedCategory.id]);
+        
+        // Select the newly created category
         setNewTaskCategory(mappedCategory.id.toString());
+        console.log('Selected new category:', mappedCategory.id.toString());
+        console.log('Added to newly created list:', mappedCategory.id);
         
         setNewCategoryName('');
         setNewCategoryDescription('');
         setShowCreateCategory(false);
       } catch (error) {
+        console.error('Error creating category:', error);
         alert('Error al crear categoría: ' + error.message);
       }
     }
@@ -929,18 +1058,12 @@ const TodoApp = () => {
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
                     <option value="">Seleccionar categoría</option>
-                    {addTaskCategories.map(cat => (
+                    {taskModalCategories.map(cat => (
                       <option key={cat.id} value={cat.id}>
                         {cat.nombre}
                       </option>
                     ))}
                   </select>
-                  
-                  {addTaskCategories.length === 3 && (
-                    <p className="text-sm text-gray-500">
-                      Mostrando las primeras 3 categorías disponibles
-                    </p>
-                  )}
                   
                   <button
                     type="button"
@@ -999,18 +1122,7 @@ const TodoApp = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-gray-700 mb-2 font-medium">Estado inicial</label>
-                <select
-                  value={newTaskStatus}
-                  onChange={(e) => setNewTaskStatus(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value={1}>Sin Empezar</option>
-                  <option value={2}>Empezada</option>
-                  <option value={3}>Finalizada</option>
-                </select>
-              </div>
+
             </div>
             
             <div className="flex space-x-3 mt-8">
@@ -1018,12 +1130,20 @@ const TodoApp = () => {
                 onClick={() => {
                   setShowAddTask(false);
                   setNewTask('');
+                  const previousCategory = newTaskCategory;
                   setNewTaskCategory('');
                   setNewTaskDueDate('');
                   setNewTaskStatus(1);
                   setShowCreateCategory(false);
                   setNewCategoryName('');
                   setNewCategoryDescription('');
+                  
+                  // If user had selected a newly created category but didn't create a task,
+                  // remove it from newly created list
+                  if (previousCategory && newlyCreatedCategoryIds.includes(parseInt(previousCategory))) {
+                    setNewlyCreatedCategoryIds(prev => prev.filter(id => id !== parseInt(previousCategory)));
+                    console.log('Cleaned up unused newly created category:', previousCategory);
+                  }
                 }}
                 className="flex-1 px-6 py-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
               >
@@ -1089,7 +1209,7 @@ const TodoApp = () => {
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value="">Seleccionar categoría</option>
-                  {Array.isArray(categories) && categories.map(cat => (
+                  {taskModalCategories.map(cat => (
                     <option key={cat.id} value={cat.id}>
                       {cat.nombre}
                     </option>
@@ -1105,8 +1225,8 @@ const TodoApp = () => {
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 >
                   <option value={1}>Sin Empezar</option>
-                  <option value={2}>Empezada</option>
-                  <option value={3}>Finalizada</option>
+                  <option value={2}>En Progreso</option>
+                  <option value={3}>Completada</option>
                 </select>
               </div>
             </div>
