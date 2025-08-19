@@ -22,6 +22,13 @@ type CreateTaskRequest struct {
 	CategoryID *int64 `json:"category_id,omitempty"`
 }
 
+// UpdateTaskRequest represents the request payload for updating a task
+type UpdateTaskRequest struct {
+	TaskText string `json:"task_text" binding:"required,min=1,max=1000"`
+	EndDate  string `json:"end_date,omitempty"` // Optional, format: "2006-01-02", empty string to clear
+	StateID  *int64 `json:"state_id,omitempty"`
+}
+
 // TaskResponse represents the response format for task data with related information
 type TaskResponse struct {
 	ID           int64             `json:"id"`

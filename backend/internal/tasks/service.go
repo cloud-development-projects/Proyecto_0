@@ -11,6 +11,7 @@ import (
 type Service interface {
 	Create(ctx context.Context, userID int64, req CreateTaskRequest) (*TaskResponse, error)
 	GetAllByUser(ctx context.Context, userID int64, categoryID *int64, stateID *int64) ([]*TaskResponse, error)
+	Update(ctx context.Context, taskID int64, userID int64, req UpdateTaskRequest) (*TaskResponse, error)
 	Delete(ctx context.Context, taskID int64, userID int64) error
 }
 
@@ -105,6 +106,68 @@ func (s *service) GetAllByUser(ctx context.Context, userID int64, categoryID *in
 	
 	// Get tasks from repository
 	return s.repo.GetAllByUser(ctx, userID, categoryID, stateID)
+}
+
+// Update updates an existing task with validation
+func (s *service) Update(ctx context.Context, taskID int64, userID int64, req UpdateTaskRequest) (*TaskResponse, error) {
+	if taskID <= 0 {
+		return nil, errors.New("invalid task ID")
+	}
+	
+	// Check if task exists and belongs to user
+	existingTask, err := s.repo.GetByID(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	if existingTask == nil {
+		return nil, errors.New("task not found")
+	}
+	if existingTask.UserID != userID {
+		return nil, errors.New("task not found")
+	}
+	
+	// Validate and clean input
+	taskText := strings.TrimSpace(req.TaskText)
+	if taskText == "" {
+		return nil, errors.New("task text cannot be empty")
+	}
+	
+	if len(taskText) > 1000 {
+		return nil, errors.New("task text cannot exceed 1000 characters")
+	}
+	
+	// Parse and validate end date if provided
+	var endDate *time.Time
+	if req.EndDate != "" {
+		parsedDate, err := time.Parse("2006-01-02", req.EndDate)
+		if err != nil {
+			return nil, errors.New("invalid end date format, use YYYY-MM-DD")
+		}
+		
+		// Check that end date is not in the past
+		if parsedDate.Before(time.Now().Truncate(24 * time.Hour)) {
+			return nil, errors.New("end date cannot be in the past")
+		}
+		
+		endDate = &parsedDate
+	}
+	// If req.EndDate is empty string, endDate will be nil (clears the date)
+	
+	// Validate state if provided
+	if req.StateID != nil {
+		if !IsValidState(*req.StateID) {
+			return nil, errors.New("invalid state ID")
+		}
+	}
+	
+	// Update the task
+	_, err = s.repo.Update(ctx, taskID, taskText, endDate, req.StateID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Return the updated task with detailed information
+	return s.repo.GetByIDWithDetails(ctx, taskID)
 }
 
 // Delete removes a task (only if it belongs to the user)

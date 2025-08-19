@@ -90,6 +90,35 @@ func (h *Handler) GetAll(c *gin.Context) {
 	})
 }
 
+// Update handles PUT /tasks/:id - updates an existing task
+func (h *Handler) Update(c *gin.Context) {
+	taskID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task ID"})
+		return
+	}
+
+	var req UpdateTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+		return
+	}
+
+	userID, err := h.getUserIDFromClaims(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	task, err := h.service.Update(c.Request.Context(), taskID, userID, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, task)
+}
+
 // Delete handles DELETE /tasks/:id - deletes a task
 func (h *Handler) Delete(c *gin.Context) {
 	taskID, err := strconv.ParseInt(c.Param("id"), 10, 64)
