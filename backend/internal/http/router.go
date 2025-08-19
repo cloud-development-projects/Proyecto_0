@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-contrib/cors" // Add this import
+	"github.com/gin-contrib/cors"
 	_ "github.com/lib/pq"
 
 	"backend/root/internal/auth"
