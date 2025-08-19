@@ -85,6 +85,8 @@ services:
 volumes:
   postgres_local_data:
     driver: local
+  frontend_local_modules:
+    driver: local
 
 networks:
   proyecto0-local-network:
