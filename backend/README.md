@@ -180,40 +180,6 @@ The PostgreSQL container automatically runs:
 - API: http://localhost:8080
 - PostgreSQL: localhost:5432
 
-### Database Schema
-
-The application uses these main tables:
-
-```sql
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    profile_img TEXT NULL
-);
-
-CREATE TABLE categories (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description TEXT
-);
-
-CREATE TABLE states (
-    id SERIAL PRIMARY KEY,
-    description VARCHAR(50) NOT NULL
-);
-
-CREATE TABLE tasks (
-    id SERIAL PRIMARY KEY,
-    task_text TEXT NOT NULL,
-    creation_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    end_date DATE,
-    id_state INT REFERENCES states(id) ON DELETE SET NULL,
-    id_category INT REFERENCES categories(id) ON DELETE SET NULL,
-    id_user INT REFERENCES users(id) ON DELETE CASCADE
-);
-```
-
 ## API Endpoints
 
 ### Authentication Endpoints (Public)
