@@ -13,7 +13,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id int64) (*Task, error)
 	GetAllByUser(ctx context.Context, userID int64, categoryID *int64, stateID *int64) ([]*TaskResponse, error)
 	GetByIDWithDetails(ctx context.Context, id int64) (*TaskResponse, error)
-	Update(ctx context.Context, id int64, taskText string, endDate *time.Time, stateID *int64) (*Task, error)
+	Update(ctx context.Context, id int64, taskText string, categoryID *int64, endDate *time.Time, stateID *int64) (*Task, error)
 	Delete(ctx context.Context, id int64) error
 }
 
@@ -188,15 +188,15 @@ func (r *PostgresRepository) GetAllByUser(ctx context.Context, userID int64, cat
 }
 
 // Update updates an existing task's text, end date, and state
-func (r *PostgresRepository) Update(ctx context.Context, id int64, taskText string, endDate *time.Time, stateID *int64) (*Task, error) {
+func (r *PostgresRepository) Update(ctx context.Context, id int64, taskText string, categoryID *int64, endDate *time.Time, stateID *int64) (*Task, error) {
 	query := `
 		UPDATE tasks 
-		SET task_text = $1, end_date = $2, id_state = $3 
-		WHERE id = $4 
+		SET task_text = $1, id_category = $2, end_date = $3, id_state = $4 
+		WHERE id = $5 
 		RETURNING id, task_text, creation_date, end_date, id_state, id_category, id_user`
 	
 	var task Task
-	err := r.db.QueryRowContext(ctx, query, taskText, endDate, stateID, id).Scan(
+	err := r.db.QueryRowContext(ctx, query, taskText, categoryID, endDate, stateID, id).Scan(
 		&task.ID, &task.TaskText, &task.CreationDate, &task.EndDate, &task.StateID, &task.CategoryID, &task.UserID,
 	)
 	if err != nil {
