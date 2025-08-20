@@ -184,7 +184,7 @@ func (s *service) Update(ctx context.Context, taskID int64, userID int64, req Up
 	}
 	
 	// Update the task
-	_, err = s.repo.Update(ctx, taskID, taskText, endDate, req.StateID)
+	_, err = s.repo.Update(ctx, taskID, taskText, req.CategoryID, endDate, req.StateID)
 	if err != nil {
 		return nil, err
 	}

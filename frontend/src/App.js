@@ -23,6 +23,10 @@ const TodoApp = () => {
   const [loading, setLoading] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [editTaskData, setEditTaskData] = useState({ texto_tarea: '', id_categoria: '', fecha_finalizacion: '', id_estado: 1 });
+  
+  // New state for editing categories
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editCategoryData, setEditCategoryData] = useState({ nombre: '', descripcion: '' });
 
   // Sidebar categories - only categories used in tasks
   const sidebarCategories = useMemo(() => {
@@ -294,7 +298,7 @@ const TodoApp = () => {
         
         const taskData = {
           task_text: newTask,
-          category_id: parseInt(newTaskCategory) || null,
+          category_id: newTaskCategory && newTaskCategory !== '' ? parseInt(newTaskCategory) : null,
           end_date: formattedEndDate,
           state_id: newTaskStatus
         };
@@ -400,6 +404,30 @@ const TodoApp = () => {
     }
   };
 
+  // New function to update category
+  const updateCategory = async () => {
+    if (editCategoryData.nombre.trim() && editingCategory) {
+      try {
+        const categoryData = {
+          name: editCategoryData.nombre,
+          description: editCategoryData.descripcion
+        };
+        
+        await apiCall(`/protected/categories/${editingCategory.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(categoryData)
+        });
+        
+        await loadData();
+        
+        setEditingCategory(null);
+        setEditCategoryData({ nombre: '', descripcion: '' });
+      } catch (error) {
+        alert('Error al actualizar categoría: ' + error.message);
+      }
+    }
+  };
+
   const deleteCategory = async (categoryId) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta categoría? Las tareas asociadas quedarán sin categoría.')) {
       try {
@@ -418,6 +446,15 @@ const TodoApp = () => {
         alert('Error al eliminar categoría: ' + error.message);
       }
     }
+  };
+
+  // New function to start editing category
+  const startEditCategory = (category) => {
+    setEditingCategory(category);
+    setEditCategoryData({
+      nombre: category.nombre,
+      descripcion: category.descripcion || ''
+    });
   };
 
   const toggleTaskStatus = async (taskId) => {
@@ -666,7 +703,7 @@ const TodoApp = () => {
                       Todas
                     </button>
                     {sidebarCategories.map(cat => (
-                      <div key={cat.id} className="flex items-center space-x-2">
+                      <div key={cat.id} className="flex items-center space-x-1">
                         <button
                           onClick={() => setSelectedCategory(cat.id.toString())}
                           className={`flex-1 text-left px-4 py-2 rounded-xl transition-all flex items-center ${
@@ -680,6 +717,13 @@ const TodoApp = () => {
                             style={{ backgroundColor: cat.color || '#6366f1' }}
                           />
                           {cat.nombre}
+                        </button>
+                        <button
+                          onClick={() => startEditCategory(cat)}
+                          className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
+                          title="Editar categoría"
+                        >
+                          <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => deleteCategory(cat.id)}
@@ -732,6 +776,50 @@ const TodoApp = () => {
 
           {/* Tasks List */}
           <div className="lg:col-span-3">
+            {/* Active Filters - Compact Display */}
+            {(selectedCategory !== 'all' || selectedStatus !== 'all') && (
+              <div className="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4 text-sm text-gray-700">
+                    {selectedCategory !== 'all' && (
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: sidebarCategories.find(cat => cat.id.toString() === selectedCategory)?.color || '#6366f1' }}
+                        />
+                        <span>
+                          {sidebarCategories.find(cat => cat.id.toString() === selectedCategory)?.nombre || 'Categoría desconocida'}
+                        </span>
+                        {sidebarCategories.find(cat => cat.id.toString() === selectedCategory)?.descripcion && (
+                          <span className="text-gray-500">
+                            - {sidebarCategories.find(cat => cat.id.toString() === selectedCategory).descripcion}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {selectedStatus !== 'all' && (
+                      <span className="text-gray-600">
+                        {selectedStatus === '1' ? 'Sin Empezar' :
+                         selectedStatus === '2' ? 'En Progreso' :
+                         selectedStatus === '3' ? 'Completadas' : 'Estado desconocido'}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      setSelectedCategory('all');
+                      setSelectedStatus('all');
+                    }}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               {Array.isArray(filteredTasks) && filteredTasks.map(task => {
                 const isOverdue = isTaskOverdue(task);
@@ -782,14 +870,15 @@ const TodoApp = () => {
                         
                         <div className="flex items-center text-gray-500 text-sm mt-2">
                           <Calendar className="w-4 h-4 mr-2" />
-                          Creada: {task.fecha_creacion ? new Date(task.fecha_creacion).toLocaleDateString('es-ES') : 'Fecha no disponible'}
+                          Creada: {task.fecha_creacion ? task.fecha_creacion.split("T")[0] : "Fecha no disponible"}
                           {task.fecha_finalizacion && (
-                            <span className={`ml-4 ${isOverdue ? 'text-red-600 font-medium' : ''}`}>
-                              Vence: {new Date(task.fecha_finalizacion).toLocaleDateString('es-ES')}
-                              {isOverdue && ' ⚠️'}
+                            <span className={`ml-4 ${isOverdue ? "text-red-600 font-medium" : ""}`}>
+                              Vence: {task.fecha_finalizacion.split("T")[0]}
+                              {isOverdue && " ⚠️"}
                             </span>
                           )}
                         </div>
+
                       </div>
                     </div>
                     
@@ -1048,6 +1137,70 @@ const TodoApp = () => {
               <button
                 onClick={updateTask}
                 disabled={!editTaskData.texto_tarea.trim()}
+                className="flex-1 px-6 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                Actualizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {editingCategory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 border border-gray-200 shadow-2xl max-w-lg w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Editar Categoría</h2>
+              <button
+                onClick={() => {
+                  setEditingCategory(null);
+                  setEditCategoryData({ nombre: '', descripcion: '' });
+                }}
+                className="p-2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-gray-700 mb-2 font-medium">Nombre *</label>
+                <input
+                  type="text"
+                  value={editCategoryData.nombre}
+                  onChange={(e) => setEditCategoryData({...editCategoryData, nombre: e.target.value})}
+                  placeholder="Nombre de la categoría"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 mb-2 font-medium">Descripción</label>
+                <textarea
+                  value={editCategoryData.descripcion}
+                  onChange={(e) => setEditCategoryData({...editCategoryData, descripcion: e.target.value})}
+                  placeholder="Descripción de la categoría (opcional)"
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                  rows={3}
+                />
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 mt-8">
+              <button
+                onClick={() => {
+                  setEditingCategory(null);
+                  setEditCategoryData({ nombre: '', descripcion: '' });
+                }}
+                className="flex-1 px-6 py-3 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={updateCategory}
+                disabled={!editCategoryData.nombre.trim()}
                 className="flex-1 px-6 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 Actualizar
