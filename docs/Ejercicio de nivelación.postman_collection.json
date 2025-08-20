@@ -1,0 +1,491 @@
+{
+	"info": {
+		"_postman_id": "367d641f-ed87-48fe-95de-6ccf326d9fbd",
+		"name": "Ejercicio de nivelación",
+		"description": "### Welcome to Postman! This is your first collection. \n\nCollections are your starting point for building and testing APIs. You can use this one to:\n\n• Group related requests\n• Test your API in real-world scenarios\n• Document and share your requests\n\nUpdate the name and overview whenever you’re ready to make it yours.\n\n[Learn more about Postman Collections.](https://learning.postman.com/docs/collections/collections-overview/)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "47729734",
+		"_collection_link": "https://jj-ramosr1-4111465.postman.co/workspace/Jaime-Ramos's-Workspace~fb582235-9b60-4c47-82fc-d24b6f51184a/collection/47695996-367d641f-ed87-48fe-95de-6ccf326d9fbd?action=share&source=collection_link&creator=47729734"
+	},
+	"item": [
+		{
+			"name": "categories",
+			"item": [
+				{
+					"name": "get all user categories",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU2NDMzNjMsImlhdCI6MTc1NTU1Njk2MywiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6ImFsaWNlMiIsInVpZCI6NiwidXNlcm5hbWUiOiJhbGljZTIifQ.WhPOTVb1rQKgomnDxkNl6b7qJDZ-JyX2LT2i3fADkgo",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8080/api/protected/categories",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"categories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create task category",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU3Mzc2MjgsImlhdCI6MTc1NTY1MTIyOCwiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6InVzdWFyaW9QcnVlYmEiLCJ1aWQiOjYsInVzZXJuYW1lIjoidXN1YXJpb1BydWViYSJ9.OGGerjyEN7oxI13TuQPDvS52D6c-PGdtd5Y2h9CqphI",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Videojuegos\",\n    \"description\": \"Categoría para videojuegos\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/protected/categories",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"categories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete task category",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU3Mzc2MjgsImlhdCI6MTc1NTY1MTIyOCwiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6InVzdWFyaW9QcnVlYmEiLCJ1aWQiOjYsInVzZXJuYW1lIjoidXN1YXJpb1BydWViYSJ9.OGGerjyEN7oxI13TuQPDvS52D6c-PGdtd5Y2h9CqphI",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8080/api/protected/categories/6",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"categories",
+								"6"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update task category",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU2NTQ4NjcsImlhdCI6MTc1NTU2ODQ2NywiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6ImphaW1lIiwidWlkIjo2LCJ1c2VybmFtZSI6ImphaW1lIn0.SYaLsafRc6CWt3TpRnCUyRNkGIxkwV0d2NtOYqZ0rX4",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"testing\",\n    \"description\": \"prueba\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/protected/categories/5",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"categories",
+								"5"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "auth",
+			"item": [
+				{
+					"name": "create user",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \n    \"username\": \"jaime\", \n    \"password\": \"secret\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/auth/register",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "user login",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \n    \"username\": \"jaime\", \n    \"password\": \"secret\" \n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/auth/login",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "user logout",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU2NTU4MzAsImlhdCI6MTc1NTU2OTQzMCwiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6ImphaW1lIiwidWlkIjo2LCJ1c2VybmFtZSI6ImphaW1lIn0.F0nJ_fcMioaq1waZuhGarY890nu4e1aYbsq1Dnc1F7g",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/auth/logout",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get current user",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU2NDMzNjMsImlhdCI6MTc1NTU1Njk2MywiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6ImFsaWNlMiIsInVpZCI6NiwidXNlcm5hbWUiOiJhbGljZTIifQ.WhPOTVb1rQKgomnDxkNl6b7qJDZ-JyX2LT2i3fADkgo",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8080/api/protected/me",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"me"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "task",
+			"item": [
+				{
+					"name": "create task",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU3Mzc2MjgsImlhdCI6MTc1NTY1MTIyOCwiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6InVzdWFyaW9QcnVlYmEiLCJ1aWQiOjYsInVzZXJuYW1lIjoidXN1YXJpb1BydWViYSJ9.OGGerjyEN7oxI13TuQPDvS52D6c-PGdtd5Y2h9CqphI",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"task_text\": \"test\",\n    \"end_date\": \"2025-10-12\",\n    \"category_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/protected/tasks/",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"tasks",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete task",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU3Mzc2MjgsImlhdCI6MTc1NTY1MTIyOCwiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6InVzdWFyaW9QcnVlYmEiLCJ1aWQiOjYsInVzZXJuYW1lIjoidXN1YXJpb1BydWViYSJ9.OGGerjyEN7oxI13TuQPDvS52D6c-PGdtd5Y2h9CqphI",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:8080/api/protected/tasks/11",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"tasks",
+								"11"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get tasks by users - filters allowed",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU3Mzc2MjgsImlhdCI6MTc1NTY1MTIyOCwiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6InVzdWFyaW9QcnVlYmEiLCJ1aWQiOjYsInVzZXJuYW1lIjoidXN1YXJpb1BydWViYSJ9.OGGerjyEN7oxI13TuQPDvS52D6c-PGdtd5Y2h9CqphI",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"task_text\": \"test\",\r\n    \"end_date\": \"2025-10-12\",\r\n    \"category_id\": 1\r\n}"
+						},
+						"url": {
+							"raw": "localhost:8080/api/protected/tasks",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"tasks"
+							],
+							"query": [
+								{
+									"key": "category_id",
+									"value": "1",
+									"disabled": true
+								},
+								{
+									"key": "state_id",
+									"value": "2",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update task",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU2NjAwMDEsImlhdCI6MTc1NTU3MzYwMSwiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6ImphaW1lIiwidWlkIjo2LCJ1c2VybmFtZSI6ImphaW1lIn0.Shm43Nox98KsVRNGbhvbURt1PqWS1YIoJA5nnML3peU",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"task_text\": \"testing\",\n    \"end_date\": \"2025-10-12\",\n    \"state_id\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8080/api/protected/tasks/12",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"tasks",
+								"12"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get task by id",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTU3Mzc2MjgsImlhdCI6MTc1NTY1MTIyOCwiaXNzIjoiUHJveWVjdG9fMCIsInN1YiI6InVzdWFyaW9QcnVlYmEiLCJ1aWQiOjYsInVzZXJuYW1lIjoidXN1YXJpb1BydWViYSJ9.OGGerjyEN7oxI13TuQPDvS52D6c-PGdtd5Y2h9CqphI",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8080/api/protected/tasks/11",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"protected",
+								"tasks",
+								"11"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
