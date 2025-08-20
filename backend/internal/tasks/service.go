@@ -80,9 +80,8 @@ func (s *service) Create(ctx context.Context, userID int64, req CreateTaskReques
 		return nil, err
 	}
 	
-	// Return the task response
-	response := task.ToResponse()
-	return &response, nil
+	// Return the task with complete details (state and category info)
+	return s.repo.GetByIDWithDetails(ctx, task.ID)
 }
 
 // GetByID retrieves a task by ID with ownership validation
